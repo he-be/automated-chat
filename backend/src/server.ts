@@ -3,7 +3,7 @@ import http from 'http';
 import WebSocket from 'ws';
 import dotenv from 'dotenv';
 import path from 'path';
-import { startConversation, getConversationHistory, stopConversation as stopConv } from './conversationManager'; // stopConversationをインポート
+import { startConversation, getConversationHistory, stopConversation as stopConv, notifyAudioPlaybackComplete } from './conversationManager'; // notifyAudioPlaybackComplete をインポート
 import { ChatMessage } from './types';
 
 // dotenv.config({ path: path.join(__dirname, '..', '.env') }); // dotenv-cliを使用するため不要
@@ -38,11 +38,30 @@ wss.on('connection', (ws) => {
     // クライアントからのメッセージは基本的には会話開始トリガーなど
     // 今回はシンプルに /start エンドポイントで開始する
     console.log(`Received message: ${message}`);
-    const messageString = message.toString();
-    if (messageString === 'START_CONVERSATION') {
-        startConversation(wss);
-    } else if (messageString === 'STOP_CONVERSATION') {
-        stopConv(wss); // インポートした関数を使用
+    try {
+      const parsedMessage = JSON.parse(message.toString());
+      if (parsedMessage.type === 'AUDIO_PLAYBACK_COMPLETE') {
+        console.log(`Received AUDIO_PLAYBACK_COMPLETE from client for speaker: ${parsedMessage.speaker}`);
+        notifyAudioPlaybackComplete(ws); // wsオブジェクトを渡す
+      } else {
+        // 従来の文字列ベースのメッセージも処理 (後方互換性のため)
+        const messageString = message.toString();
+        if (messageString === 'START_CONVERSATION') {
+            startConversation(wss);
+        } else if (messageString === 'STOP_CONVERSATION') {
+            stopConv(wss);
+        }
+      }
+    } catch (e) {
+      // JSONパースに失敗した場合、文字列として処理
+      const messageString = message.toString();
+      if (messageString === 'START_CONVERSATION') {
+          startConversation(wss);
+      } else if (messageString === 'STOP_CONVERSATION') {
+          stopConv(wss);
+      } else {
+        console.warn('Received non-JSON WebSocket message or unknown type:', messageString);
+      }
     }
   });
 

@@ -50,7 +50,14 @@ function connectWebSocket() {
         stopButton.disabled = false;
         startButton.style.display = 'none';
         stopButton.style.display = 'block';
-        playMessageAudio(message.text, message.speaker); // Play audio for ALVA or Bob
+        // Play audio and wait for it to finish before sending confirmation
+        (async () => {
+          // message.speakerが 'ALVA' | 'Bob' であることをここで保証
+          await playMessageAudio(message.text, message.speaker as 'ALVA' | 'Bob'); 
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'AUDIO_PLAYBACK_COMPLETE', speaker: message.speaker }));
+          }
+        })();
       }
     } catch (error) {
       console.error('メッセージの解析に失敗しました、またはメッセージ形式が無効です:', event.data, error);
@@ -103,19 +110,21 @@ function appendMessage(message: ChatMessage) {
 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 let currentAudioSource: AudioBufferSourceNode | null = null;
 
-async function playMessageAudio(text: string, speaker: 'ALVA' | 'Bob') {
-  if (currentAudioSource) {
-    currentAudioSource.stop(); // 現在再生中の音声を停止
-    currentAudioSource.disconnect();
-    currentAudioSource = null;
-  }
+function playMessageAudio(text: string, speaker: 'ALVA' | 'Bob'): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    if (currentAudioSource) {
+      currentAudioSource.onended = null; // 前のonendedハンドラをクリア
+      currentAudioSource.stop(); // 現在再生中の音声を停止
+      currentAudioSource.disconnect();
+      currentAudioSource = null;
+    }
 
   // TTSサーバーへのリクエストパラメータ
   // curl -X 'GET' \
   // 'https://tts.do-not-connect.com/voice?text=aaa&model_id=0&speaker_id=0&sdp_ratio=0.2&noise=0.6&noisew=0.8&length=1&language=JP&auto_split=true&split_interval=0.5&assist_text_weight=1&style=Neutral&style_weight=1'
   const ttsParams = {
     message: text,
-    stylebertvits2ModelId: speaker === 'ALVA' ? '0' : '1', // ALVA: model_id 0, Bob: model_id 1 (仮)
+    stylebertvits2ModelId: speaker === 'ALVA' ? '5' : '1', // ALVA: model_id 0, Bob: model_id 1 (仮)
     stylebertvits2SpeakerId: '0', // speaker_id は常に 0 とする
     stylebertvits2SdpRatio: 0.2,
     stylebertvits2Noise: 0.6, // Default from curl
@@ -179,12 +188,15 @@ async function playMessageAudio(text: string, speaker: 'ALVA' | 'Bob') {
       if (currentAudioSource === source) { // 他の音声で上書きされていない場合のみクリア
         currentAudioSource = null;
       }
+      resolve(); // 音声再生完了
     };
 
   } catch (error) {
     console.error('TTSリクエストまたは音声再生エラー:', error);
     appendMessage({ speaker: 'System', text: `音声再生エラー: ${(error as Error).message}`, timestamp: new Date().toISOString() });
+    reject(error); // エラー時
   }
+});
 }
 // --- TTS再生機能ここまで ---
 
