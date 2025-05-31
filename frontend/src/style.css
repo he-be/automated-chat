@@ -1,0 +1,113 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f4f4;
+  color: #333;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  text-align: center;
+  color: #2c3e50;
+}
+
+#startButton {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #3498db;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+#startButton:hover {
+  background-color: #2980b9;
+}
+
+#stopButton {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #e74c3c; /* Red for stop */
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+#stopButton:hover {
+  background-color: #c0392b;
+}
+
+#chatArea {
+  margin-top: 20px;
+  border: 1px solid #ddd;
+  padding: 10px;
+  height: calc(100vh - 220px); /* Adjust 220px based on other elements' height */
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+}
+
+.message {
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.message.speaker-ALVA {
+  background-color: #e1f5fe; /* Light blue for ALVA */
+  text-align: left;
+  margin-right: 20%;
+}
+.message.speaker-ALVA .speaker-label {
+  font-weight: bold;
+  color: #0277bd; /* Blue for ALVA */
+}
+
+.message.speaker-Bob {
+  background-color: #fff9c4; /* Light yellow for Bob */
+  text-align: left;
+  margin-left: 20%;
+}
+.message.speaker-Bob .speaker-label {
+  font-weight: bold;
+  color: #f57f17; /* Orange for Bob */
+}
+.message.speaker-Bob .text::before {
+  content: "「";
+}
+.message.speaker-Bob .text::after {
+  content: "」";
+}
+
+.message.speaker-System {
+  background-color: #f0f0f0; /* Light grey */
+  text-align: center;
+  font-style: italic;
+  color: #666;
+  font-size: 0.9em;
+}
+.message .speaker-label {
+  display: block;
+  font-size: 0.8em;
+  margin-bottom: 4px;
+}
+.message .timestamp {
+  display: block;
+  font-size: 0.7em;
+  color: #999;
+  text-align: right;
+}
