@@ -8,7 +8,8 @@ interface ChatMessage {
 
 const startButton = document.getElementById('startButton') as HTMLButtonElement;
 const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
-const chatArea = document.getElementById('chatArea') as HTMLDivElement;
+const chatArea = document.getElementById('chatArea') as HTMLDivElement; // AIメッセージ用アニメーションの親として利用するかも
+const systemMessageContainer = document.getElementById('systemMessageContainer') as HTMLDivElement;
 
 // バックエンドのWebSocketサーバーのURL
 // Vite開発サーバー経由ではなく直接接続する場合
@@ -82,28 +83,76 @@ function connectWebSocket() {
 }
 
 
+const ANIMATION_DURATION = 5000; // ms, CSSのanimation-durationと合わせるか、ここから設定する
+
 function appendMessage(message: ChatMessage) {
   const messageElement = document.createElement('div');
   messageElement.classList.add('message', `speaker-${message.speaker}`);
+  
+  let messageText = message.text;
+  let authorLine = '';
 
-  const speakerLabel = document.createElement('span');
-  speakerLabel.classList.add('speaker-label');
-  speakerLabel.textContent = message.speaker === 'System' ? 'システム' : message.speaker;
-  
-  const textElement = document.createElement('p');
-  textElement.classList.add('text');
-  textElement.textContent = message.text;
+  // 著者のカッコを見つけて分割
+  const authorMatch = messageText.match(/\(([^)]+)\)$/);
+  if (authorMatch) {
+    authorLine = authorMatch[0]; // 例: (夏目漱石)
+    messageText = messageText.substring(0, messageText.lastIndexOf(authorMatch[0])).trim();
+    // カッコの直前で改行を強制（ただし、元々改行がある場合はそのまま）
+    // messageText = messageText.replace(/\s*\(([^)]+)\)$/, '\n$&');
+  }
 
-  const timeElement = document.createElement('span');
-  timeElement.classList.add('timestamp');
-  timeElement.textContent = new Date(message.timestamp).toLocaleTimeString();
-  
-  messageElement.appendChild(speakerLabel);
-  messageElement.appendChild(textElement);
-  messageElement.appendChild(timeElement);
-  
-  chatArea.appendChild(messageElement);
-  chatArea.scrollTop = chatArea.scrollHeight; // 自動スクロール
+  const quoteElement = document.createElement('p');
+  quoteElement.classList.add('quote-text');
+  quoteElement.innerText = messageText; // innerTextで改行を保持
+  messageElement.appendChild(quoteElement);
+
+  if (authorLine) {
+    const authorElement = document.createElement('p');
+    authorElement.classList.add('author-line');
+    authorElement.textContent = authorLine;
+    messageElement.appendChild(authorElement);
+  }
+
+
+  if (message.speaker === 'System') {
+    // システムメッセージは #systemMessageContainer に追加
+    if (systemMessageContainer) {
+      // 古いシステムメッセージを削除
+      while (systemMessageContainer.firstChild) {
+        systemMessageContainer.removeChild(systemMessageContainer.firstChild);
+      }
+      systemMessageContainer.appendChild(messageElement);
+    } else {
+      console.error("systemMessageContainer not found!"); // Fallback or error handling
+      chatArea.appendChild(messageElement); // Fallback to old behavior
+    }
+  } else {
+    // ALVAとBobのメッセージはアニメーション付きで表示
+    // messageElement.style.position = 'absolute'; // CSSで設定済み
+
+    // 左右の配置はCSSで行うため、ここではtextAlignのみ設定
+    if (message.speaker === 'ALVA') {
+      messageElement.classList.add('align-right');
+    } else { // Bob
+      messageElement.classList.add('align-left');
+    }
+    
+    // アニメーションクラスを追加（CSSで定義されたものを参照）
+    messageElement.classList.add('animate-message');
+    // messageElement.style.animation = `fadeInMoveUpAndFadeOut ${ANIMATION_DURATION / 1000}s ease-in-out forwards`;
+    
+    // chatAreaではなく、#app直下に追加して画面全体でアニメーションさせる
+    const appElement = document.getElementById('app');
+    if (appElement) {
+        appElement.appendChild(messageElement);
+    }
+
+
+    // アニメーション終了後に要素を削除
+    setTimeout(() => {
+      messageElement.remove();
+    }, ANIMATION_DURATION);
+  }
 }
 
 // --- TTS再生機能 ---

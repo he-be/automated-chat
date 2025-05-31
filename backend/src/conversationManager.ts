@@ -155,7 +155,7 @@ export function startConversation(wss: WebSocket.Server) {
   broadcastMessage(wss, initialMessage);
   
   // Bobから会話を開始
-  const firstPromptForBob = "それで僕は、ポケットからあの赤いハンチングを出してかぶったんだ (ライ麦畑でつかまえて）";
+  const firstPromptForBob = "それで僕は、ポケットからあの赤いハンチングを出してかぶったんだ。 (ライ麦畑でつかまえて）";
   const firstBobMessage: ChatMessage = {
     speaker: 'Bob',
     text: firstPromptForBob,

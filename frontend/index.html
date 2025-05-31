@@ -9,11 +9,15 @@
 </head>
 <body>
   <div id="app">
-    <h1>AI会話ビューア</h1>
-    <button id="startButton">会話開始</button>
-    <button id="stopButton" style="display: none;">会話停止</button>
+    <!-- <h1>AI会話ビューア</h1> -->
+    <div id="controls">
+      <button id="startButton">会話開始</button>
+      <button id="stopButton" style="display: none;">会話停止</button>
+    </div>
     <div id="chatArea">
-      </div>
+      <!-- AIメッセージはここに直接追加されず、#app直下に追加される -->
+    </div>
+    <div id="systemMessageContainer"></div> <!-- システムメッセージ用コンテナ -->
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

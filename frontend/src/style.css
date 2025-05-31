@@ -1,113 +1,242 @@
+/* 基本設定 */
 body {
-  font-family: sans-serif;
+  font-family: "游明朝体", "Yu Mincho", YuMincho, "ヒラギノ明朝 ProN W3", "Hiragino Mincho ProN", "HG明朝E", "ＭＳ Ｐ明朝", "ＭＳ 明朝", serif;
   margin: 0;
-  padding: 20px;
-  background-color: #f4f4f4;
-  color: #333;
+  background-color: #000; /* 黒背景 */
+  color: #fff; /* 白文字 */
+  overflow: hidden; /* スクロールバーを隠す（アニメーションのため） */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
 }
 
 #app {
-  max-width: 800px;
-  margin: 0 auto;
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  height: 100vh;
+  position: relative; /* 子要素の絶対配置の基準 */
+  overflow: hidden; /* メッセージが画面外にはみ出ないように */
 }
 
-h1 {
-  text-align: center;
-  color: #2c3e50;
+/* コントロールボタン */
+#controls {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 100; /* 他の要素より手前に表示 */
 }
 
-#startButton {
-  display: block;
-  margin: 20px auto;
-  padding: 10px 20px;
-  font-size: 16px;
-  color: #fff;
-  background-color: #3498db;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-#startButton:hover {
-  background-color: #2980b9;
-}
-
-#stopButton {
-  display: block;
-  margin: 20px auto;
-  padding: 10px 20px;
-  font-size: 16px;
-  color: #fff;
-  background-color: #e74c3c; /* Red for stop */
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-#stopButton:hover {
-  background-color: #c0392b;
-}
-
-#chatArea {
-  margin-top: 20px;
-  border: 1px solid #ddd;
-  padding: 10px;
-  height: calc(100vh - 220px); /* Adjust 220px based on other elements' height */
-  overflow-y: auto;
-  background-color: #f9f9f9;
-  border-radius: 5px;
-}
-
-.message {
-  padding: 8px;
-  margin-bottom: 8px;
+#controls button {
+  background-color: #333; /* グレー系の背景 */
+  color: #ccc; /* 薄いグレーの文字 */
+  border: 1px solid #555; /* 少し濃いグレーの枠線 */
+  padding: 8px 15px;
+  margin-right: 10px;
   border-radius: 4px;
-  line-height: 1.4;
+  cursor: pointer;
+  font-family: sans-serif; /* ボタンはゴシック体の方が見やすいかも */
+  font-size: 14px;
+  transition: background-color 0.3s, color 0.3s;
 }
 
-.message.speaker-ALVA {
-  background-color: #e1f5fe; /* Light blue for ALVA */
-  text-align: left;
-  margin-right: 20%;
-}
-.message.speaker-ALVA .speaker-label {
-  font-weight: bold;
-  color: #0277bd; /* Blue for ALVA */
+#controls button:hover {
+  background-color: #444;
+  color: #fff;
 }
 
-.message.speaker-Bob {
-  background-color: #fff9c4; /* Light yellow for Bob */
-  text-align: left;
-  margin-left: 20%;
-}
-.message.speaker-Bob .speaker-label {
-  font-weight: bold;
-  color: #f57f17; /* Orange for Bob */
-}
-.message.speaker-Bob .text::before {
-  content: "「";
-}
-.message.speaker-Bob .text::after {
-  content: "」";
-}
-
-.message.speaker-System {
-  background-color: #f0f0f0; /* Light grey */
-  text-align: center;
-  font-style: italic;
+#controls button:disabled {
+  background-color: #222;
   color: #666;
-  font-size: 0.9em;
+  cursor: not-allowed;
+  border-color: #444;
 }
-.message .speaker-label {
-  display: block;
-  font-size: 0.8em;
-  margin-bottom: 4px;
+
+
+/* チャットエリア */
+#chatArea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* メッセージを中央に寄せる（アニメーションの起点） */
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
 }
+
+/* メッセージスタイル */
+.message {
+  position: absolute; /* アニメーションのために絶対配置 */
+  max-width: 55%; /* メッセージ幅の最大、少し狭く */
+  padding: 20px 30px;
+  border-radius: 8px;
+  font-size: 2em; /* さらに少し大きく */
+  line-height: 1.7;
+  will-change: transform, opacity;
+  /* 中央寄せのための基本設定 */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%); /* これで要素の中心が画面の中心に来る */
+  opacity: 0; /* 初期状態は透明 */
+}
+
+.message p { /* メッセージ内のpタグのデフォルトマージンをリセット */
+  margin: 0;
+}
+
+.message .quote-text {
+  text-align: left; /* 引用文は左揃え */
+  margin-bottom: 0.5em; /* 著者との間隔 */
+}
+
+.message .author-line {
+  text-align: right; /* 著者は右揃え */
+  font-size: 0.8em; /* 著者を少し小さく */
+  opacity: 0.9;
+}
+
+
+.message .speaker-label,
 .message .timestamp {
-  display: block;
-  font-size: 0.7em;
-  color: #999;
-  text-align: right;
+  display: none; /* 今回のデザインでは非表示 */
+}
+
+/* JavaScriptで .align-left または .align-right を付与して左右に寄せる */
+.message.align-ALVA, 
+.message.align-right {
+  left: 50%; /* 中央基準 */
+  /* 右に25% (中心からメッセージ幅の半分 + 5%のギャップを引いたようなイメージ) */
+  /* メッセージ幅がmax-width: 55% なので、その半分は約27.5% */
+  /* 50% (中心) + 27.5% (メッセージ右半分) - 55% (メッセージ全体幅の補正) + 5% (画面端からのマージン)  のような考え方 */
+  /* もっとシンプルに、画面右端から一定のマージンを確保する形にする */
+  /* transform: translate(calc(25% + 5vw), -50%); */
+  transform: translate(calc(50% - 55% / 2 + 5vw - 27.5vw), -50%); /* 複雑なので見直し */
+  /* 右寄せ: 要素の右端が画面の右から5%の位置に来るようにする */
+  /* left を auto にして right で制御する方が直感的 */
+  left: auto;
+  right: 5%;
+  transform: translateY(-50%); /* Y軸は中央のまま */
+}
+
+.message.align-Bob,
+.message.align-left {
+  left: 5%; /* 左から5%の位置 */
+  right: auto;
+  transform: translateY(-50%); /* Y軸は中央のまま */
+}
+
+
+/* システムメッセージ用コンテナ */
+#systemMessageContainer {
+  position: absolute;
+  bottom: 10px; /* 画面最下部からの距離 */
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 50; /* 他のメッセージよりは手前、コントロールよりは奥など調整 */
+}
+
+/* システムメッセージはシンプルに */
+.message.speaker-System {
+  font-size: 1em;
+  color: #888;
+  background-color: rgba(0,0,0,0.5); /* 少し背景をつけて読みやすく */
+  box-shadow: none;
+  text-align: center;
+  width: auto; 
+  max-width: 80%; 
+  /* position: absolute; はコンテナ側で制御 */
+  opacity: 1; 
+  animation: none; 
+  padding: 8px 15px; /* パディングを少し調整 */
+  border-radius: 4px;
+  /* margin, transform は不要 */
+}
+
+.message.animate-message {
+  animation-name: fadeInMoveUpAndFadeOut;
+  animation-duration: 5s; /* ANIMATION_DURATIONと合わせる */
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards;
+}
+
+
+/* アニメーション定義 */
+/* 発言が出てくる位置はウインドウの縦の中央とする */
+@keyframes fadeInMoveUpAndFadeOut {
+  0% { 
+    opacity: 0;
+    /* Y軸中央を基準に、そこから100px下に配置 */
+    /* .message の top: 50%; transform: translateY(-50%) が基本位置なので、そこからの相対移動 */
+    transform: translateY(calc(-50% + 100px)) scale(0.8); 
+  }
+  15%, 85% { /* 表示期間 */
+    opacity: 1;
+    transform: translateY(-50%) scale(1); /* Y軸中央 */
+  }
+  100% { 
+    opacity: 0;
+    transform: translateY(calc(-50% - 150px)) scale(1.1); /* Y軸中央から150px上に */
+  }
+}
+/* .align-left と .align-right での transform を調整 */
+/* アニメーション内の transform は、.message の基本 transform (translate(-50%, -50%)) を上書きするのではなく、
+   それに対して相対的に動くようにするか、あるいはアニメーション側でX軸の配置も制御する必要がある。
+   現状の .message の left: 50%; top: 50%; transform: translate(-50%, -50%); は
+   アニメーション対象の要素の「初期位置決め」であり、
+   .align-left/right はその初期位置を左右にずらす役割。
+   アニメーションの transform は、そのずれた状態からさらにY軸方向に動かす。
+*/
+
+/* .message.align-left/right の transform: translateY(-50%) とアニメーションの transform: translateY(...) が競合する。
+   アニメーション側でX軸の配置も考慮するか、
+   .message の基本スタイルでX軸を中央にし、アニメーションでY軸を動かし、
+   .align-left/right はX軸のオフセットのみを担当するようにする。
+*/
+
+/* 再度 .message の配置を見直し */
+.message {
+  position: absolute;
+  max-width: 55%;
+  padding: 20px 30px;
+  border-radius: 8px;
+  font-size: 2em;
+  line-height: 1.7;
+  will-change: transform, opacity;
+  opacity: 0; /* 初期は透明 */
+  /* top: 50%; Y軸中央はアニメーションで制御 */
+}
+
+.message.align-right {
+  right: 5%;
+  /* transform: translateY(-50%); アニメーションで制御 */
+}
+
+.message.align-left {
+  left: 5%;
+  /* transform: translateY(-50%); アニメーションで制御 */
+}
+
+@keyframes fadeInMoveUpAndFadeOut {
+  0% { 
+    opacity: 0;
+    /* Y軸中央から100px下。X軸は各alignクラスで設定された位置 */
+    transform: translateY(100px) scale(0.8); 
+  }
+  15% { /* 表示開始 */
+    opacity: 1;
+    transform: translateY(0) scale(1); /* Y軸のオフセットなし (各alignクラスのY基準) */
+  }
+  85% { /* 表示終了直前 */
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% { 
+    opacity: 0;
+    transform: translateY(-150px) scale(1.1); /* Y軸オフセットで上に */
+  }
 }
