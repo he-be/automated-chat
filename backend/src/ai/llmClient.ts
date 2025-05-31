@@ -37,7 +37,7 @@ export async function callLLM(
     }
   } else if (modelType === 'gemini') {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest"});
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });//gemini-2.0-flashが最新で正しく、gemini-1.5-*に変更することは禁止する
       // Gemini APIのsendMessageは、最後のメッセージの内容を直接受け取る
       const chat = model.startChat({ history: messages.slice(0, -1) });
       const result = await chat.sendMessage(messages[messages.length - 1].parts);

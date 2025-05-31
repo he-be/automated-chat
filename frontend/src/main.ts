@@ -44,12 +44,13 @@ function connectWebSocket() {
         stopButton.disabled = true;
         startButton.style.display = 'block';
         stopButton.style.display = 'none';
-      } else if (message.speaker !== 'System') {
+      } else if (message.speaker === 'ALVA' || message.speaker === 'Bob') {
         // If an AI message comes, ensure stop button is enabled and start is disabled
         startButton.disabled = true;
         stopButton.disabled = false;
         startButton.style.display = 'none';
         stopButton.style.display = 'block';
+        playMessageAudio(message.text, message.speaker); // Play audio for ALVA or Bob
       }
     } catch (error) {
       console.error('メッセージの解析に失敗しました、またはメッセージ形式が無効です:', event.data, error);
@@ -97,6 +98,96 @@ function appendMessage(message: ChatMessage) {
   chatArea.appendChild(messageElement);
   chatArea.scrollTop = chatArea.scrollHeight; // 自動スクロール
 }
+
+// --- TTS再生機能 ---
+const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+let currentAudioSource: AudioBufferSourceNode | null = null;
+
+async function playMessageAudio(text: string, speaker: 'ALVA' | 'Bob') {
+  if (currentAudioSource) {
+    currentAudioSource.stop(); // 現在再生中の音声を停止
+    currentAudioSource.disconnect();
+    currentAudioSource = null;
+  }
+
+  // TTSサーバーへのリクエストパラメータ
+  // curl -X 'GET' \
+  // 'https://tts.do-not-connect.com/voice?text=aaa&model_id=0&speaker_id=0&sdp_ratio=0.2&noise=0.6&noisew=0.8&length=1&language=JP&auto_split=true&split_interval=0.5&assist_text_weight=1&style=Neutral&style_weight=1'
+  const ttsParams = {
+    message: text,
+    stylebertvits2ModelId: speaker === 'ALVA' ? '0' : '1', // ALVA: model_id 0, Bob: model_id 1 (仮)
+    stylebertvits2SpeakerId: '0', // speaker_id は常に 0 とする
+    stylebertvits2SdpRatio: 0.2,
+    stylebertvits2Noise: 0.6, // Default from curl
+    stylebertvits2NoiseW: 0.8, // Default from curl
+    stylebertvits2Length: 1.0,
+    selectLanguage: 'ja', // 日本語固定
+    stylebertvits2AutoSplit: "true", // Default from curl
+    stylebertvits2SplitInterval: 0.5, // Default from curl
+    stylebertvits2AssistTextWeight: 1, // Default from curl
+    stylebertvits2Style: 'Neutral', // ALVA: Neutral, Bob: Happy (仮)
+    stylebertvits2StyleWeight: 1, // Default from curl
+    // stylebertvits2ServerUrl, stylebertvits2ApiKey, cfAccessClientId, cfAccessClientSecret はバックエンドで処理
+  };
+
+  try {
+    const response = await fetch('/api/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(ttsParams),
+    });
+
+    if (!response.ok) {
+      let errorDetail = `HTTPステータス: ${response.status}`;
+      let responseText = '';
+      try {
+        responseText = await response.text(); // まずテキストとして取得
+        errorDetail += ` - ${responseText}`; // テキスト内容を詳細に追加
+        // テキストがJSON形式であれば、その中のエラーメッセージを抽出試行
+        try {
+            const jsonData = JSON.parse(responseText);
+            if (jsonData && jsonData.error) {
+                errorDetail = `TTS APIエラー: ${jsonData.error} (HTTP ${response.status})`;
+            } else {
+                errorDetail = `TTS APIエラー: ${responseText} (HTTP ${response.status})`;
+            }
+        } catch (jsonError) {
+            // JSONパース失敗時は、取得したテキストをそのままエラーメッセージとして扱う
+             errorDetail = `TTS APIからの予期せぬ応答 (HTTP ${response.status}): ${responseText}`;
+        }
+      } catch (textError) {
+        // レスポンスボディの読み取り自体に失敗した場合
+        errorDetail += ' (レスポンスボディの読み取りにも失敗)';
+      }
+      console.error(`TTS APIエラー詳細: ${errorDetail}`);
+      appendMessage({ speaker: 'System', text: `音声の取得に失敗しました. ${errorDetail}`, timestamp: new Date().toISOString() });
+      return;
+    }
+
+    const audioData = await response.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(audioData);
+
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+    currentAudioSource = source; // 現在の音源を保存
+
+    source.onended = () => {
+      if (currentAudioSource === source) { // 他の音声で上書きされていない場合のみクリア
+        currentAudioSource = null;
+      }
+    };
+
+  } catch (error) {
+    console.error('TTSリクエストまたは音声再生エラー:', error);
+    appendMessage({ speaker: 'System', text: `音声再生エラー: ${(error as Error).message}`, timestamp: new Date().toISOString() });
+  }
+}
+// --- TTS再生機能ここまで ---
+
 
 startButton.addEventListener('click', async () => {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
