@@ -1,242 +1,295 @@
-/* 基本設定 */
-body {
-  font-family: "游明朝体", "Yu Mincho", YuMincho, "ヒラギノ明朝 ProN W3", "Hiragino Mincho ProN", "HG明朝E", "ＭＳ Ｐ明朝", "ＭＳ 明朝", serif;
+/* CSS Variables for Cyberpunk Theme */
+:root {
+  --color-background: #0A1931; /* Deep Blue */
+  --color-surface: rgba(20, 30, 50, 0.7); /* Transparent Dark */
+  --color-accent1: #00FFFF; /* Electric Blue */
+  --color-accent2: #39FF14; /* Neon Green */
+  --color-text-primary: #E0E0E0; /* Very Light Gray */
+  --color-text-highlight: #FFFFFF; /* White */
+  --color-text-quote-source: rgba(180, 180, 180, 0.6); /* Transparent Gray */
+
+  /* Fonts - Prioritize cyberpunk/monospace, fallback to system fonts */
+  --font-primary: 'Courier New', Courier, monospace; /* Example, can be changed */
+  --font-display: 'Orbitron', sans-serif; /* Example for headings or special text, if needed */
+}
+
+/* Basic Reset & Global Styles */
+* {
   margin: 0;
-  background-color: #000; /* 黒背景 */
-  color: #fff; /* 白文字 */
-  overflow: hidden; /* スクロールバーを隠す（アニメーションのため） */
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevent scrollbars */
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-primary);
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  position: relative; /* For background animation pseudo-element */
 }
 
-#app {
-  width: 100%;
-  height: 100vh;
-  position: relative; /* 子要素の絶対配置の基準 */
-  overflow: hidden; /* メッセージが画面外にはみ出ないように */
-}
-
-/* コントロールボタン */
-#controls {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 100; /* 他の要素より手前に表示 */
-}
-
-#controls button {
-  background-color: #333; /* グレー系の背景 */
-  color: #ccc; /* 薄いグレーの文字 */
-  border: 1px solid #555; /* 少し濃いグレーの枠線 */
-  padding: 8px 15px;
-  margin-right: 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: sans-serif; /* ボタンはゴシック体の方が見やすいかも */
-  font-size: 14px;
-  transition: background-color 0.3s, color 0.3s;
-}
-
-#controls button:hover {
-  background-color: #444;
-  color: #fff;
-}
-
-#controls button:disabled {
-  background-color: #222;
-  color: #666;
-  cursor: not-allowed;
-  border-color: #444;
-}
-
-
-/* チャットエリア */
-#chatArea {
+/* Subtle Background Animation (Noise/Static) */
+body::before {
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-size: 200px 200px; /* Adjust for desired grain size */
+  opacity: 0.03; /* Very subtle */
+  animation: subtleNoise 0.5s steps(2) infinite;
+  z-index: -1; /* Behind all content */
+  pointer-events: none;
+}
+
+@keyframes subtleNoise {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 2px); }
+  50% { transform: translate(2px, -2px); }
+  75% { transform: translate(2px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
+
+/* Main Application Container */
+#app {
+  width: 100%;
+  max-width: 1200px; /* Max width for larger screens */
+  height: 100vh;
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center; /* メッセージを中央に寄せる（アニメーションの起点） */
-  align-items: center;
+  justify-content: center; /* Vertically center chat area */
+  align-items: center; /* Horizontally center chat area */
   padding: 20px;
-  box-sizing: border-box;
 }
 
-/* メッセージスタイル */
+/* Chat Area - Central Text Display */
+#chatArea {
+  width: 80%; /* Adjust as needed */
+  max-width: 800px; /* Max width for chat text */
+  height: 70%; /* Adjust as needed */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Vertically center messages */
+  align-items: center; /* Horizontally center messages content within chatArea */
+  overflow: hidden; /* Hide messages that scroll out of view */
+  position: relative; /* For positioning messages and quote source within */
+  border: 1px solid var(--color-accent1); /* Optional border */
+  background-color: var(--color-surface);
+  padding: 20px;
+  border-radius: 5px;
+}
+
+/* Message Styling (Basic Structure for now) */
 .message {
-  position: absolute; /* アニメーションのために絶対配置 */
-  max-width: 55%; /* メッセージ幅の最大、少し狭く */
-  padding: 20px 30px;
-  border-radius: 8px;
-  font-size: 2em; /* さらに少し大きく */
-  line-height: 1.7;
-  will-change: transform, opacity;
-  /* 中央寄せのための基本設定 */
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%); /* これで要素の中心が画面の中心に来る */
-  opacity: 0; /* 初期状態は透明 */
+  width: auto; /* Fit content */
+  max-width: 95%; /* Max width within chatArea, ensure it's less than chatArea's padding allows */
+  padding: 10px 15px;
+  margin-bottom: 15px; /* Space between messages */
+  opacity: 0; /* Start transparent for fade-in animation */
+  transform: translateY(20px); /* Start slightly lower for fade-in animation */
+  /* transition: opacity 0.5s ease-out, transform 0.5s ease-out; */ /* Removed to control via animation classes */
+  font-size: 1.2em; /* Adjust as needed */
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  /* border-left: 3px solid var(--color-accent2); Optional accent */
 }
 
-.message p { /* メッセージ内のpタグのデフォルトマージンをリセット */
+.message p {
   margin: 0;
 }
 
-.message .quote-text {
-  text-align: left; /* 引用文は左揃え */
-  margin-bottom: 0.5em; /* 著者との間隔 */
+/* Specific speaker alignment (will be refined with animations) */
+.message.speaker-ALVA {
+  text-align: left; /* Or right, depending on final design */
+  /* color: var(--color-accent1); */
 }
 
-.message .author-line {
-  text-align: right; /* 著者は右揃え */
-  font-size: 0.8em; /* 著者を少し小さく */
-  opacity: 0.9;
+.message.speaker-Bob {
+  text-align: left; /* Or left, depending on final design */
+  /* color: var(--color-accent2); */
 }
 
-
-.message .speaker-label,
-.message .timestamp {
-  display: none; /* 今回のデザインでは非表示 */
+/* Quote text and source styling (placeholders) */
+.quote-text {
+  /* Styles for the main quote text */
 }
 
-/* JavaScriptで .align-left または .align-right を付与して左右に寄せる */
-.message.align-ALVA, 
-.message.align-right {
-  left: 50%; /* 中央基準 */
-  /* 右に25% (中心からメッセージ幅の半分 + 5%のギャップを引いたようなイメージ) */
-  /* メッセージ幅がmax-width: 55% なので、その半分は約27.5% */
-  /* 50% (中心) + 27.5% (メッセージ右半分) - 55% (メッセージ全体幅の補正) + 5% (画面端からのマージン)  のような考え方 */
-  /* もっとシンプルに、画面右端から一定のマージンを確保する形にする */
-  /* transform: translate(calc(25% + 5vw), -50%); */
-  transform: translate(calc(50% - 55% / 2 + 5vw - 27.5vw), -50%); /* 複雑なので見直し */
-  /* 右寄せ: 要素の右端が画面の右から5%の位置に来るようにする */
-  /* left を auto にして right で制御する方が直感的 */
-  left: auto;
-  right: 5%;
-  transform: translateY(-50%); /* Y軸は中央のまま */
-}
-
-.message.align-Bob,
-.message.align-left {
-  left: 5%; /* 左から5%の位置 */
-  right: auto;
-  transform: translateY(-50%); /* Y軸は中央のまま */
+.quote-source {
+  font-size: 0.8em;
+  color: var(--color-text-quote-source);
+  opacity: 0; /* Hidden initially, animated by JS */
+  position: absolute;
+  bottom: 10px; /* Position at the bottom of chatArea */
+  right: 15px;  /* Position at the right of chatArea */
+  text-align: right;
+  width: auto; /* Allow it to size based on content */
+  max-width: calc(100% - 30px); /* Max width considering padding of parent */
+  /* Ensure it uses the cyberpunk font if desired */
+  font-family: var(--font-primary);
 }
 
 
-/* システムメッセージ用コンテナ */
+/* Controls (Basic Styling for now) */
+#controls {
+  position: absolute;
+  top: 20px;
+  left: 20px; /* Or right, or centered, per final design */
+  z-index: 100;
+}
+
+#controls button {
+  background-color: var(--color-surface);
+  color: var(--color-accent1);
+  border: 1px solid var(--color-accent1);
+  padding: 10px 20px;
+  margin-right: 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: var(--font-primary);
+  font-size: 1em;
+  transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+#controls button:hover {
+  background-color: var(--color-accent1);
+  color: var(--color-background);
+  box-shadow: 0 0 10px var(--color-accent1);
+}
+
+#controls button:disabled {
+  background-color: #222; /* Darker, less prominent */
+  color: #666;
+  border-color: #444;
+  cursor: not-allowed;
+}
+
+/* System Messages */
 #systemMessageContainer {
   position: absolute;
-  bottom: 10px; /* 画面最下部からの距離 */
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  z-index: 50; /* 他のメッセージよりは手前、コントロールよりは奥など調整 */
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: 90%;
+  z-index: 50;
 }
 
-/* システムメッセージはシンプルに */
 .message.speaker-System {
-  font-size: 1em;
-  color: #888;
-  background-color: rgba(0,0,0,0.5); /* 少し背景をつけて読みやすく */
-  box-shadow: none;
+  background-color: rgba(0,0,0,0.7); /* Darker, more subtle */
+  color: var(--color-text-quote-source);
+  font-size: 0.9em;
+  padding: 8px 15px;
+  border-radius: 3px;
   text-align: center;
-  width: auto; 
-  max-width: 80%; 
-  /* position: absolute; はコンテナ側で制御 */
-  opacity: 1; 
-  animation: none; 
-  padding: 8px 15px; /* パディングを少し調整 */
-  border-radius: 4px;
-  /* margin, transform は不要 */
+  opacity: 1; /* System messages are always visible if present */
+  transform: none; /* No animation by default */
+  margin-bottom: 0;
+  /* Remove border from general .message if not desired for system messages */
+  /* border-left: none; */
+}
+
+/*
+  Placeholder for future animations:
+  - Typewriter
+  - Fade-in / Fade-out for quotes
+  - Quote source animation
+*/
+
+/* New Animations */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  width: 0.1em;
+  height: 1.2em; /* Should match line-height of text */
+  background-color: var(--color-accent1);
+  animation: blink 0.7s infinite;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px); /* Move up slightly as it fades */
+  }
+}
+
+.message-fade-out {
+  animation: fadeOut 0.5s ease-out forwards;
+}
+
+@keyframes fadeInQuickThenSlowFadeOut {
+  0% { opacity: 0; transform: translateY(5px); }
+  20% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-5px); }
+}
+
+.quote-source-animate {
+  animation: fadeInQuickThenSlowFadeOut 3s ease-in-out forwards;
+  /* animation-delay is handled by JS after typewriter */
+}
+
+/* Remove or comment out old animations */
+/*
+@keyframes fadeInMoveUpAndFadeOut {
+  0% {
+    opacity: 0;
+    transform: translateY(100px) scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-150px) scale(1.1);
+  }
 }
 
 .message.animate-message {
   animation-name: fadeInMoveUpAndFadeOut;
-  animation-duration: 5s; /* ANIMATION_DURATIONと合わせる */
+  animation-duration: 5s;
   animation-timing-function: ease-in-out;
   animation-fill-mode: forwards;
 }
-
-
-/* アニメーション定義 */
-/* 発言が出てくる位置はウインドウの縦の中央とする */
-@keyframes fadeInMoveUpAndFadeOut {
-  0% { 
-    opacity: 0;
-    /* Y軸中央を基準に、そこから100px下に配置 */
-    /* .message の top: 50%; transform: translateY(-50%) が基本位置なので、そこからの相対移動 */
-    transform: translateY(calc(-50% + 100px)) scale(0.8); 
-  }
-  15%, 85% { /* 表示期間 */
-    opacity: 1;
-    transform: translateY(-50%) scale(1); /* Y軸中央 */
-  }
-  100% { 
-    opacity: 0;
-    transform: translateY(calc(-50% - 150px)) scale(1.1); /* Y軸中央から150px上に */
-  }
-}
-/* .align-left と .align-right での transform を調整 */
-/* アニメーション内の transform は、.message の基本 transform (translate(-50%, -50%)) を上書きするのではなく、
-   それに対して相対的に動くようにするか、あるいはアニメーション側でX軸の配置も制御する必要がある。
-   現状の .message の left: 50%; top: 50%; transform: translate(-50%, -50%); は
-   アニメーション対象の要素の「初期位置決め」であり、
-   .align-left/right はその初期位置を左右にずらす役割。
-   アニメーションの transform は、そのずれた状態からさらにY軸方向に動かす。
 */
-
-/* .message.align-left/right の transform: translateY(-50%) とアニメーションの transform: translateY(...) が競合する。
-   アニメーション側でX軸の配置も考慮するか、
-   .message の基本スタイルでX軸を中央にし、アニメーションでY軸を動かし、
-   .align-left/right はX軸のオフセットのみを担当するようにする。
-*/
-
-/* 再度 .message の配置を見直し */
-.message {
-  position: absolute;
-  max-width: 55%;
-  padding: 20px 30px;
-  border-radius: 8px;
-  font-size: 2em;
-  line-height: 1.7;
-  will-change: transform, opacity;
-  opacity: 0; /* 初期は透明 */
-  /* top: 50%; Y軸中央はアニメーションで制御 */
-}
-
-.message.align-right {
-  right: 5%;
-  /* transform: translateY(-50%); アニメーションで制御 */
-}
-
-.message.align-left {
-  left: 5%;
-  /* transform: translateY(-50%); アニメーションで制御 */
-}
-
-@keyframes fadeInMoveUpAndFadeOut {
-  0% { 
-    opacity: 0;
-    /* Y軸中央から100px下。X軸は各alignクラスで設定された位置 */
-    transform: translateY(100px) scale(0.8); 
-  }
-  15% { /* 表示開始 */
-    opacity: 1;
-    transform: translateY(0) scale(1); /* Y軸のオフセットなし (各alignクラスのY基準) */
-  }
-  85% { /* 表示終了直前 */
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% { 
-    opacity: 0;
-    transform: translateY(-150px) scale(1.1); /* Y軸オフセットで上に */
-  }
-}

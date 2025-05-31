@@ -13,7 +13,7 @@ const systemMessageContainer = document.getElementById('systemMessageContainer')
 
 // バックエンドのWebSocketサーバーのURL
 // Vite開発サーバー経由ではなく直接接続する場合
-const WS_URL = 'ws://localhost:3000'; 
+const WS_URL = 'ws://localhost:3000';
 let socket: WebSocket | null = null;
 
 function connectWebSocket() {
@@ -35,28 +35,31 @@ function connectWebSocket() {
 
   socket.onmessage = (event) => {
     try {
-      const message: ChatMessage = JSON.parse(event.data as string);
+      // Consider adding more robust parsing and type validation here if needed
+      const message = JSON.parse(event.data as string) as ChatMessage;
       appendMessage(message);
-      if (message.speaker === 'System' && 
-          (message.text === '会話が終了しました。' || 
+
+      if (message.speaker === 'System' &&
+          (message.text === '会話が終了しました。' ||
            message.text.includes('応答取得に失敗しました') ||
            message.text === '会話が手動で停止されました。')) {
         startButton.disabled = false;
         stopButton.disabled = true;
         startButton.style.display = 'block';
         stopButton.style.display = 'none';
-      } else if (message.speaker === 'ALVA' || message.speaker === 'Bob') {
-        // If an AI message comes, ensure stop button is enabled and start is disabled
+      } else if (isAlvaOrBob(message.speaker)) { // Use type guard
         startButton.disabled = true;
         stopButton.disabled = false;
         startButton.style.display = 'none';
         stopButton.style.display = 'block';
-        // Play audio and wait for it to finish before sending confirmation
+        // Capture the narrowed type in a local variable before the async closure
+        const speakerForAudio: 'ALVA' | 'Bob' = message.speaker;
         (async () => {
-          // message.speakerが 'ALVA' | 'Bob' であることをここで保証
-          await playMessageAudio(message.text, message.speaker as 'ALVA' | 'Bob'); 
+          await playMessageAudio(message.text, speakerForAudio);
           if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'AUDIO_PLAYBACK_COMPLETE', speaker: message.speaker }));
+            // Using speakerForAudio here as well for consistency, though message.speaker would also be fine
+            // if the outer scope's narrowing is trusted by all TS versions/configurations.
+            socket.send(JSON.stringify({ type: 'AUDIO_PLAYBACK_COMPLETE', speaker: speakerForAudio }));
           }
         })();
       }
@@ -74,85 +77,113 @@ function connectWebSocket() {
   socket.onclose = () => {
     console.log('WebSocket接続が閉じられました');
     appendMessage({ speaker: 'System', text: 'サーバーとの接続が切れました。', timestamp: new Date().toISOString() });
-    socket = null; // Allow reconnection
-    startButton.disabled = true; // Disable start until reconnected
+    socket = null;
+    startButton.disabled = true;
     stopButton.disabled = true;
-    startButton.style.display = 'block'; // Show start, hide stop
+    startButton.style.display = 'block';
     stopButton.style.display = 'none';
   };
 }
 
+const TYPEWRITER_DELAY = 30; // ms per character
+const FADEOUT_DURATION = 500; // ms, should match CSS animation
 
-const ANIMATION_DURATION = 5000; // ms, CSSのanimation-durationと合わせるか、ここから設定する
+// Type guard to check if speaker is ALVA or Bob
+function isAlvaOrBob(speaker: ChatMessage['speaker']): speaker is 'ALVA' | 'Bob' {
+  return speaker === 'ALVA' || speaker === 'Bob';
+}
+
+async function typewriterEffect(element: HTMLElement, text: string, cursor: HTMLElement, onComplete?: () => void) {
+  element.textContent = ''; // Clear existing text
+  for (let i = 0; i < text.length; i++) {
+    element.textContent += text[i];
+    await new Promise(resolve => setTimeout(resolve, TYPEWRITER_DELAY));
+  }
+  cursor.remove(); // Remove cursor when typing is done
+  if (onComplete) {
+    onComplete();
+  }
+}
 
 function appendMessage(message: ChatMessage) {
-  const messageElement = document.createElement('div');
-  messageElement.classList.add('message', `speaker-${message.speaker}`);
-  
-  let messageText = message.text;
-  let authorLine = '';
-
-  // 著者のカッコを見つけて分割
-  const authorMatch = messageText.match(/\(([^)]+)\)$/);
-  if (authorMatch) {
-    authorLine = authorMatch[0]; // 例: (夏目漱石)
-    messageText = messageText.substring(0, messageText.lastIndexOf(authorMatch[0])).trim();
-    // カッコの直前で改行を強制（ただし、元々改行がある場合はそのまま）
-    // messageText = messageText.replace(/\s*\(([^)]+)\)$/, '\n$&');
-  }
-
-  const quoteElement = document.createElement('p');
-  quoteElement.classList.add('quote-text');
-  quoteElement.innerText = messageText; // innerTextで改行を保持
-  messageElement.appendChild(quoteElement);
-
-  if (authorLine) {
-    const authorElement = document.createElement('p');
-    authorElement.classList.add('author-line');
-    authorElement.textContent = authorLine;
-    messageElement.appendChild(authorElement);
-  }
-
-
   if (message.speaker === 'System') {
-    // システムメッセージは #systemMessageContainer に追加
     if (systemMessageContainer) {
-      // 古いシステムメッセージを削除
+      // Clear previous system messages
       while (systemMessageContainer.firstChild) {
         systemMessageContainer.removeChild(systemMessageContainer.firstChild);
       }
-      systemMessageContainer.appendChild(messageElement);
+      const systemMessageElement = document.createElement('div');
+      systemMessageElement.classList.add('message', 'speaker-System');
+      systemMessageElement.textContent = message.text;
+      systemMessageContainer.appendChild(systemMessageElement);
     } else {
-      console.error("systemMessageContainer not found!"); // Fallback or error handling
-      chatArea.appendChild(messageElement); // Fallback to old behavior
+      console.error("systemMessageContainer not found!");
     }
-  } else {
-    // ALVAとBobのメッセージはアニメーション付きで表示
-    // messageElement.style.position = 'absolute'; // CSSで設定済み
-
-    // 左右の配置はCSSで行うため、ここではtextAlignのみ設定
-    if (message.speaker === 'ALVA') {
-      messageElement.classList.add('align-right');
-    } else { // Bob
-      messageElement.classList.add('align-left');
-    }
-    
-    // アニメーションクラスを追加（CSSで定義されたものを参照）
-    messageElement.classList.add('animate-message');
-    // messageElement.style.animation = `fadeInMoveUpAndFadeOut ${ANIMATION_DURATION / 1000}s ease-in-out forwards`;
-    
-    // chatAreaではなく、#app直下に追加して画面全体でアニメーションさせる
-    const appElement = document.getElementById('app');
-    if (appElement) {
-        appElement.appendChild(messageElement);
-    }
-
-
-    // アニメーション終了後に要素を削除
-    setTimeout(() => {
-      messageElement.remove();
-    }, ANIMATION_DURATION);
+    return; // System messages don't use the main chatArea animations
   }
+
+  // Fade out existing messages in chatArea
+  const existingMessages = chatArea.querySelectorAll('.message:not(.speaker-System)');
+  existingMessages.forEach(msg => {
+    msg.classList.add('message-fade-out');
+    setTimeout(() => msg.remove(), FADEOUT_DURATION);
+  });
+
+  const messageElement = document.createElement('div');
+  messageElement.classList.add('message', `speaker-${message.speaker}`);
+  // ALVA/Bob specific classes for potential different styling (e.g. text-align, color)
+  // These classes would need to be defined in style.css if used.
+  // Example:
+  // if (message.speaker === 'ALVA') messageElement.classList.add('message-alva');
+  // if (message.speaker === 'Bob') messageElement.classList.add('message-bob');
+
+  let messageTextContent = message.text;
+  let displayAuthorName: string; // Explicitly string for the author name to be displayed
+
+  // message.speaker is 'ALVA' | 'Bob' at this point due to the early return for 'System'.
+  // The cast `as 'ALVA' | 'Bob'` is removed as TypeScript should infer this correctly.
+  const currentSpeaker = message.speaker;
+
+
+  // Extract author from parentheses if present, e.g., "Quote text (Author Name)"
+  // Supports both half-width and full-width parentheses, and optional trailing spaces.
+  const authorMatch = messageTextContent.match(/[(（]([^)）]+)[)）]\s*$/);
+  if (authorMatch && authorMatch[1]) {
+    displayAuthorName = authorMatch[1].trim(); // Use name from parentheses, trim whitespace
+    messageTextContent = messageTextContent.substring(0, messageTextContent.lastIndexOf(authorMatch[0])).trim();
+  } else {
+    displayAuthorName = currentSpeaker; // Default to speaker name ('ALVA' or 'Bob')
+  }
+
+  const quoteTextContainer = document.createElement('div'); // Container for text and cursor
+  quoteTextContainer.classList.add('quote-text-container'); // For potential styling
+
+  const quoteTextElement = document.createElement('span'); // Use span for inline behavior with cursor
+  quoteTextElement.classList.add('quote-text');
+  // quoteTextElement.textContent = messageTextContent; // Text will be set by typewriter
+
+  const cursorElement = document.createElement('span');
+  cursorElement.classList.add('typewriter-cursor');
+
+  quoteTextContainer.appendChild(quoteTextElement);
+  quoteTextContainer.appendChild(cursorElement);
+  messageElement.appendChild(quoteTextContainer);
+
+  const authorElement = document.createElement('p');
+  authorElement.classList.add('quote-source');
+  authorElement.textContent = `— ${displayAuthorName}`; // Add em dash for style
+  messageElement.appendChild(authorElement);
+
+  chatArea.appendChild(messageElement);
+  messageElement.classList.add('message-fade-in'); // Trigger fade-in
+
+  // Start typewriter after a short delay to allow fade-in to start
+  setTimeout(() => {
+    typewriterEffect(quoteTextElement, messageTextContent, cursorElement, () => {
+      // After typewriter is complete, animate the quote source
+      authorElement.classList.add('quote-source-animate');
+    });
+  }, 100); // Small delay for fade-in to kick in
 }
 
 // --- TTS再生機能 ---
