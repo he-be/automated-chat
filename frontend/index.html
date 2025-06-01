@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
+  <div id="backgroundConversationLog"></div> <!-- 背景会話ログ用コンテナ -->
   <div id="app">
     <!-- <h1>AI会話ビューア</h1> -->
     <div id="controls">
@@ -15,7 +16,8 @@
       <button id="stopButton" style="display: none;">会話停止</button>
     </div>
     <div id="chatArea">
-      <!-- AIメッセージはここに直接追加されず、#app直下に追加される -->
+      <!-- AIメッセージはここに表示される -->
+      <p id="currentQuoteSource" class="quote-source"></p> <!-- 著者名表示専用要素 -->
     </div>
     <div id="systemMessageContainer"></div> <!-- システムメッセージ用コンテナ -->
   </div>

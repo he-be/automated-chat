@@ -78,14 +78,14 @@ body::before {
 #chatArea {
   width: 80%; /* Adjust as needed */
   max-width: 800px; /* Max width for chat text */
-  height: 70%; /* Adjust as needed */
+  height: 30%; /* Adjust as needed - Reverted from 30% */
   display: flex;
   flex-direction: column;
   justify-content: center; /* Vertically center messages */
   align-items: center; /* Horizontally center messages content within chatArea */
   overflow: hidden; /* Hide messages that scroll out of view */
   position: relative; /* For positioning messages and quote source within */
-  border: 1px solid var(--color-accent1); /* Optional border */
+  border: 1px solid var(--color-accent1); /* Reverted from none */
   background-color: var(--color-surface);
   padding: 20px;
   border-radius: 5px;
@@ -100,7 +100,7 @@ body::before {
   opacity: 0; /* Start transparent for fade-in animation */
   transform: translateY(20px); /* Start slightly lower for fade-in animation */
   /* transition: opacity 0.5s ease-out, transform 0.5s ease-out; */ /* Removed to control via animation classes */
-  font-size: 1.2em; /* Adjust as needed */
+  font-size: 1.8em; /* Adjust as needed */
   line-height: 1.6;
   color: var(--color-text-primary);
   /* border-left: 3px solid var(--color-accent2); Optional accent */
@@ -127,7 +127,8 @@ body::before {
 }
 
 .quote-source {
-  font-size: 0.8em;
+  display: block; /* Ensure block display behavior */
+  font-size: 1.2em;
   color: var(--color-text-quote-source);
   opacity: 0; /* Hidden initially, animated by JS */
   position: absolute;
@@ -136,8 +137,8 @@ body::before {
   text-align: right;
   width: auto; /* Allow it to size based on content */
   max-width: calc(100% - 30px); /* Max width considering padding of parent */
-  /* Ensure it uses the cyberpunk font if desired */
   font-family: var(--font-primary);
+  z-index: 10; /* Ensure it's above other text flow within its context */
 }
 
 
@@ -261,7 +262,7 @@ body::before {
 }
 
 .quote-source-animate {
-  animation: fadeInQuickThenSlowFadeOut 3s ease-in-out forwards;
+  animation: fadeInQuickThenSlowFadeOut 5s ease-in-out forwards;
   /* animation-delay is handled by JS after typewriter */
 }
 
@@ -293,3 +294,48 @@ body::before {
   animation-fill-mode: forwards;
 }
 */
+
+/* Background Conversation Log Styles */
+#backgroundConversationLog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2; /* Behind #app and body::before noise */
+  color: rgba(var(--color-text-primary-rgb, 224, 224, 224), 0.3); /* Very faint text - Reverted alpha from 0.4 */
+  font-family: var(--font-primary);
+  font-size: 1.2em; /* Smaller than main text - Reverted from 2.0em */
+  line-height: 1.3;
+  overflow-y: auto; /* Allow vertical scrolling */
+  /* Hide scrollbar for Webkit browsers (Chrome, Safari, Edge) */
+  /* Note: This is a non-standard pseudo-element */
+  /* Hide scrollbar for Firefox */
+  scrollbar-width: none;
+  /* Hide scrollbar for IE/Edge (older versions) */
+  -ms-overflow-style: none;
+  padding: 10px;
+  white-space: pre-wrap; /* Preserve newlines and wrap long lines */
+  word-break: break-all; /* Break long words if necessary to prevent overflow */
+  pointer-events: none; /* Make it non-interactive */
+  /* To use --color-text-primary with opacity, we need its RGB values.
+     Let's assume E0E0E0 -> 224,224,224.
+     If CSS variables level 4 color-mix is available, that's better.
+     For now, hardcoding or using a separate RGB variable is an option.
+     Let's define --color-text-primary-rgb in :root if not already.
+     For simplicity here, I'll use a direct rgba value.
+  */
+}
+#backgroundConversationLog::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for Webkit browsers */
+}
+
+#backgroundConversationLog .bg-log-alva {
+  font-weight: bold;
+  /* Optionally, a slightly different faint color for ALVA if desired */
+  /* color: rgba(var(--color-accent1-rgb, 0, 255, 255), 0.08); */
+}
+
+/* Add --color-text-primary-rgb to :root for better maintainability */
+/* This should be added inside the :root selector block */
+/* For now, the rgba in #backgroundConversationLog will work. */

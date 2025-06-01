@@ -8,8 +8,13 @@ interface ChatMessage {
 
 const startButton = document.getElementById('startButton') as HTMLButtonElement;
 const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
-const chatArea = document.getElementById('chatArea') as HTMLDivElement; // AIメッセージ用アニメーションの親として利用するかも
+const chatArea = document.getElementById('chatArea') as HTMLDivElement;
 const systemMessageContainer = document.getElementById('systemMessageContainer') as HTMLDivElement;
+const backgroundLogElement = document.getElementById('backgroundConversationLog') as HTMLDivElement;
+const currentQuoteSourceElement = document.getElementById('currentQuoteSource') as HTMLParagraphElement;
+
+let fullConversationText = ""; // To store the entire conversation for the background
+// const MAX_BG_LOG_LENGTH = 5000; // Characters, adjust as needed - This logic will be removed for scrolling
 
 // バックエンドのWebSocketサーバーのURL
 // Vite開発サーバー経由ではなく直接接続する場合
@@ -106,6 +111,28 @@ async function typewriterEffect(element: HTMLElement, text: string, cursor: HTML
 }
 
 function appendMessage(message: ChatMessage) {
+  // Update background conversation log for ALVA and Bob messages
+  if (backgroundLogElement && (message.speaker === 'ALVA' || message.speaker === 'Bob')) {
+    // Logic for clearing log when it's too long is removed in favor of scrolling.
+    // if (fullConversationText.length > MAX_BG_LOG_LENGTH) {
+    //   fullConversationText = ""; 
+    // }
+    let logEntry = "";
+    // Extract actual text content without author for the log
+    const textOnlyMatch = message.text.match(/^(.*?)(?:\s*[(（][^)）]+[)）]\s*)?$/);
+    const textForLog = textOnlyMatch ? textOnlyMatch[1].trim() : message.text.trim(); // Trim text for log
+
+    if (message.speaker === 'ALVA') {
+      logEntry = `<span class="bg-log-alva">${textForLog}</span> `; // Add space instead of newline
+    } else { // Bob
+      logEntry = `${textForLog} `; // Add space instead of newline
+    }
+    fullConversationText += logEntry;
+    backgroundLogElement.innerHTML = fullConversationText;
+    // Scroll to the bottom of the background log
+    backgroundLogElement.scrollTop = backgroundLogElement.scrollHeight;
+  }
+
   if (message.speaker === 'System') {
     if (systemMessageContainer) {
       // Clear previous system messages
@@ -122,12 +149,18 @@ function appendMessage(message: ChatMessage) {
     return; // System messages don't use the main chatArea animations
   }
 
-  // Fade out existing messages in chatArea
+  // Fade out existing messages in chatArea and clear current quote source
   const existingMessages = chatArea.querySelectorAll('.message:not(.speaker-System)');
   existingMessages.forEach(msg => {
     msg.classList.add('message-fade-out');
     setTimeout(() => msg.remove(), FADEOUT_DURATION);
   });
+  // Clear and hide previous quote source
+  if (currentQuoteSourceElement) {
+    currentQuoteSourceElement.textContent = "";
+    currentQuoteSourceElement.classList.remove('quote-source-animate');
+    currentQuoteSourceElement.style.opacity = '0'; // Ensure it's hidden before new one animates
+  }
 
   const messageElement = document.createElement('div');
   messageElement.classList.add('message', `speaker-${message.speaker}`);
@@ -169,10 +202,8 @@ function appendMessage(message: ChatMessage) {
   quoteTextContainer.appendChild(cursorElement);
   messageElement.appendChild(quoteTextContainer);
 
-  const authorElement = document.createElement('p');
-  authorElement.classList.add('quote-source');
-  authorElement.textContent = `— ${displayAuthorName}`; // Add em dash for style
-  messageElement.appendChild(authorElement);
+  // Note: The authorElement <p class="quote-source"> is no longer created per message.
+  // We will update the #currentQuoteSource element instead.
 
   chatArea.appendChild(messageElement);
   messageElement.classList.add('message-fade-in'); // Trigger fade-in
@@ -180,8 +211,14 @@ function appendMessage(message: ChatMessage) {
   // Start typewriter after a short delay to allow fade-in to start
   setTimeout(() => {
     typewriterEffect(quoteTextElement, messageTextContent, cursorElement, () => {
-      // After typewriter is complete, animate the quote source
-      authorElement.classList.add('quote-source-animate');
+      // After typewriter is complete, update and animate the dedicated quote source element
+      if (currentQuoteSourceElement) {
+        currentQuoteSourceElement.textContent = `— ${displayAuthorName}`;
+        currentQuoteSourceElement.style.opacity = '0'; // Reset for animation
+        // Force reflow before adding animation class to ensure transition plays
+        void currentQuoteSourceElement.offsetWidth; 
+        currentQuoteSourceElement.classList.add('quote-source-animate');
+      }
     });
   }, 100); // Small delay for fade-in to kick in
 }
