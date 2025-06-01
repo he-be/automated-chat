@@ -17,8 +17,9 @@ let fullConversationText = ""; // To store the entire conversation for the backg
 // const MAX_BG_LOG_LENGTH = 5000; // Characters, adjust as needed - This logic will be removed for scrolling
 
 // バックエンドのWebSocketサーバーのURL
-// Vite開発サーバー経由ではなく直接接続する場合
-const WS_URL = 'ws://localhost:3000';
+// Dynamically set the WebSocket URL based on the hostname the frontend is accessed from.
+// This allows connections from LAN devices if the backend is on the same host.
+const WS_URL = `ws://${window.location.hostname}:3000`;
 let socket: WebSocket | null = null;
 
 function connectWebSocket() {
@@ -111,28 +112,6 @@ async function typewriterEffect(element: HTMLElement, text: string, cursor: HTML
 }
 
 function appendMessage(message: ChatMessage) {
-  // Update background conversation log for ALVA and Bob messages
-  if (backgroundLogElement && (message.speaker === 'ALVA' || message.speaker === 'Bob')) {
-    // Logic for clearing log when it's too long is removed in favor of scrolling.
-    // if (fullConversationText.length > MAX_BG_LOG_LENGTH) {
-    //   fullConversationText = ""; 
-    // }
-    let logEntry = "";
-    // Extract actual text content without author for the log
-    const textOnlyMatch = message.text.match(/^(.*?)(?:\s*[(（][^)）]+[)）]\s*)?$/);
-    const textForLog = textOnlyMatch ? textOnlyMatch[1].trim() : message.text.trim(); // Trim text for log
-
-    if (message.speaker === 'ALVA') {
-      logEntry = `<span class="bg-log-alva">${textForLog}</span> `; // Add space instead of newline
-    } else { // Bob
-      logEntry = `${textForLog} `; // Add space instead of newline
-    }
-    fullConversationText += logEntry;
-    backgroundLogElement.innerHTML = fullConversationText;
-    // Scroll to the bottom of the background log
-    backgroundLogElement.scrollTop = backgroundLogElement.scrollHeight;
-  }
-
   if (message.speaker === 'System') {
     if (systemMessageContainer) {
       // Clear previous system messages
@@ -170,22 +149,43 @@ function appendMessage(message: ChatMessage) {
   // if (message.speaker === 'ALVA') messageElement.classList.add('message-alva');
   // if (message.speaker === 'Bob') messageElement.classList.add('message-bob');
 
-  let messageTextContent = message.text;
-  let displayAuthorName: string; // Explicitly string for the author name to be displayed
-
   // message.speaker is 'ALVA' | 'Bob' at this point due to the early return for 'System'.
-  // The cast `as 'ALVA' | 'Bob'` is removed as TypeScript should infer this correctly.
-  const currentSpeaker = message.speaker;
+  const currentSpeaker = message.speaker; // This will be 'ALVA' or 'Bob'
 
+  // Determine messageTextContent (for main display) and displayAuthorName (for quote source)
+  // Also determine textForBackgroundLog
+  let messageTextContent = message.text; // Start with the full original text
+  let displayAuthorName: string;
+  let extractedAuthorForBg: string | null = null;
 
-  // Extract author from parentheses if present, e.g., "Quote text (Author Name)"
-  // Supports both half-width and full-width parentheses, and optional trailing spaces.
   const authorMatch = messageTextContent.match(/[(（]([^)）]+)[)）]\s*$/);
   if (authorMatch && authorMatch[1]) {
-    displayAuthorName = authorMatch[1].trim(); // Use name from parentheses, trim whitespace
+    extractedAuthorForBg = authorMatch[1].trim();
+    displayAuthorName = extractedAuthorForBg;
+    // For main display, strip the author part from messageTextContent
     messageTextContent = messageTextContent.substring(0, messageTextContent.lastIndexOf(authorMatch[0])).trim();
   } else {
-    displayAuthorName = currentSpeaker; // Default to speaker name ('ALVA' or 'Bob')
+    displayAuthorName = currentSpeaker; // Default to speaker name for main quote source
+    // messageTextContent remains as is (no author in parentheses to strip for main display)
+  }
+
+  // Update background conversation log for ALVA and Bob messages
+  if (backgroundLogElement) { // No need to check speaker, System messages returned early
+    let textForBackgroundLog = messageTextContent; // This is now the quote text (author stripped if was present)
+    if (extractedAuthorForBg) { // If an author was found in parentheses
+      textForBackgroundLog = `${messageTextContent} (${extractedAuthorForBg})`;
+    }
+    // If no author in parentheses, textForBackgroundLog is just messageTextContent (quote only)
+
+    let logEntry = "";
+    if (message.speaker === 'ALVA') {
+      logEntry = `<span class="bg-log-alva">${textForBackgroundLog}</span> `;
+    } else { // Bob
+      logEntry = `${textForBackgroundLog} `;
+    }
+    fullConversationText += logEntry;
+    backgroundLogElement.innerHTML = fullConversationText;
+    backgroundLogElement.scrollTop = backgroundLogElement.scrollHeight;
   }
 
   const quoteTextContainer = document.createElement('div'); // Container for text and cursor

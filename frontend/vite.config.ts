@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   server: {
+    host: '0.0.0.0', // Allow access from any network interface
     proxy: {
       // '/start-conversation'のようなHTTP APIリクエストをバックエンドにプロキシ
       '/start-conversation': {

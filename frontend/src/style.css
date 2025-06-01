@@ -78,7 +78,7 @@ body::before {
 #chatArea {
   width: 80%; /* Adjust as needed */
   max-width: 800px; /* Max width for chat text */
-  height: 30%; /* Adjust as needed - Reverted from 30% */
+  height: 50%; /* Adjust as needed - Reverted from 30% */
   display: flex;
   flex-direction: column;
   justify-content: center; /* Vertically center messages */
@@ -100,7 +100,7 @@ body::before {
   opacity: 0; /* Start transparent for fade-in animation */
   transform: translateY(20px); /* Start slightly lower for fade-in animation */
   /* transition: opacity 0.5s ease-out, transform 0.5s ease-out; */ /* Removed to control via animation classes */
-  font-size: 1.8em; /* Adjust as needed */
+  font-size: 1.0em; /* Adjust as needed */
   line-height: 1.6;
   color: var(--color-text-primary);
   /* border-left: 3px solid var(--color-accent2); Optional accent */
