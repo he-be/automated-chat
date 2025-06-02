@@ -17,9 +17,16 @@ let fullConversationText = ""; // To store the entire conversation for the backg
 // const MAX_BG_LOG_LENGTH = 5000; // Characters, adjust as needed - This logic will be removed for scrolling
 
 // バックエンドのWebSocketサーバーのURL
-// Dynamically set the WebSocket URL based on the hostname the frontend is accessed from.
-// This allows connections from LAN devices if the backend is on the same host.
-const WS_URL = `ws://${window.location.hostname}:3000`;
+// Cloudflare経由の場合は wss:// を使用し、ポート番号は含めない。
+// パス /ws をWebSocket通信専用とする（Cloudflare Tunnel側での設定と合わせる）
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+// 公開URLの場合はポートを指定せず、Cloudflareがよしなに処理してくれることを期待。
+// ローカル開発時など、window.location.hostname が localhost や IPアドレスの場合は、従来のポート3000を使う。
+const wsHost = (window.location.hostname === 'localhost' || window.location.hostname.match(/^(\d{1,3}\.){3}\d{1,3}$/))
+                ? `${window.location.hostname}:3000`
+                : window.location.hostname;
+const WS_URL = `${wsProtocol}//${wsHost}${wsProtocol === 'wss:' ? '/ws' : ''}`;
+
 let socket: WebSocket | null = null;
 
 function connectWebSocket() {

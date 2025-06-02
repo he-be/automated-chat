@@ -16,6 +16,7 @@ let turnTimeoutId: NodeJS.Timeout | null = null;
 // 本番環境ではより堅牢なID管理が必要な場合がある）
 // 値はPromiseのresolve関数
 const audioPlaybackCompleteNotifiers = new Map<WebSocket, () => void>();
+const AUDIO_PLAYBACK_TIMEOUT = 30000; // 30秒
 
 function broadcastMessage(wss: WebSocket.Server, message: ChatMessage) {
   conversationHistory.push(message);
@@ -31,23 +32,42 @@ async function waitForAudioPlaybackComplete(ws: WebSocket): Promise<void> {
   // システムメッセージの場合は待たない
   const lastMessage = conversationHistory[conversationHistory.length - 1];
   if (lastMessage && lastMessage.speaker === 'System') {
+    console.log("System message, not waiting for audio playback.");
     return Promise.resolve();
   }
-  
-  return new Promise((resolve) => {
-    audioPlaybackCompleteNotifiers.set(ws, resolve);
-    // タイムアウト処理も考慮すると良い（例: 30秒待っても通知が来なければエラー）
+
+  // クライアントの識別子（ここでは仮にwsオブジェクトのハッシュや一意のIDを使うべきだが、簡略化）
+  const clientId = ws.toString(); // 仮のクライアントID (本番ではより良い方法で)
+
+  console.log(`Setting up waitForAudioPlaybackComplete for client: ${clientId}`);
+
+  return new Promise((resolve) => { // rejectも引数に取れるが、今回はタイムアウト時もresolve
+    const timeoutId = setTimeout(() => {
+      console.warn(`Audio playback complete timed out for client: ${clientId} after ${AUDIO_PLAYBACK_TIMEOUT}ms`);
+      audioPlaybackCompleteNotifiers.delete(ws); // タイムアウトしたらMapから削除
+      resolve(); // タイムアウト時もresolveして処理を続行させる
+    }, AUDIO_PLAYBACK_TIMEOUT);
+
+    audioPlaybackCompleteNotifiers.set(ws, () => {
+      clearTimeout(timeoutId);
+      console.log(`Audio playback complete received from client: ${clientId}`);
+      resolve();
+    });
   });
 }
 
 // server.tsから呼び出される関数
 export function notifyAudioPlaybackComplete(ws: WebSocket) {
+  const clientId = ws.toString(); // 仮のクライアントID
   if (audioPlaybackCompleteNotifiers.has(ws)) {
-    const resolve = audioPlaybackCompleteNotifiers.get(ws);
-    if (resolve) {
-      resolve();
+    console.log(`notifyAudioPlaybackComplete called for client: ${clientId}`);
+    const resolveCallback = audioPlaybackCompleteNotifiers.get(ws);
+    if (resolveCallback) {
+      resolveCallback();
     }
     audioPlaybackCompleteNotifiers.delete(ws);
+  } else {
+    console.warn(`notifyAudioPlaybackComplete called for client: ${clientId}, but no notifier found. (Already resolved or timed out?)`);
   }
 }
 
@@ -102,23 +122,32 @@ async function nextTurn(wss: WebSocket.Server, currentAgent: AgentA | AgentB, op
         // 最後に発言したAIのメッセージに対する完了を待つ必要がある。
         // 今回は、最後に発言したのがAIの場合のみ待つ。
         if (newMessage.speaker === 'ALVA' || newMessage.speaker === 'Bob') {
-            console.log(`Waiting for audio playback of ${newMessage.speaker}'s message...`);
-            // 全クライアントの再生完了を待つ (Promise.allを使用)
+            console.log(`Waiting for audio playback of ${newMessage.speaker}'s message from ${wss.clients.size} clients.`);
             const playbackPromises = Array.from(wss.clients).map(client => {
+                const clientIdentifier = client.toString(); // 仮
+                console.log(` - Setting up wait for client: ${clientIdentifier} for ${newMessage.speaker}'s message.`);
                 if (client.readyState === WebSocket.OPEN) {
-                    return waitForAudioPlaybackComplete(client);
+                    return waitForAudioPlaybackComplete(client).catch(err => {
+                        console.error(`Error waiting for playback from ${clientIdentifier} for ${newMessage.speaker}'s message:`, err);
+                        return Promise.resolve(); // エラー時も全体を止めない
+                    });
                 }
+                console.log(` - Client ${clientIdentifier} not open, resolving immediately for ${newMessage.speaker}'s message.`);
                 return Promise.resolve(); // 接続が切れていたら待たない
             });
-            await Promise.all(playbackPromises);
-            console.log("All clients completed audio playback (or connection closed).");
+            try {
+              await Promise.all(playbackPromises);
+              console.log(`All clients completed audio playback for ${newMessage.speaker}'s message (or timed out/error).`);
+            } catch (error) {
+              console.error(`Error in Promise.all for ${newMessage.speaker}'s message playback:`, error);
+            }
         }
     }
 
 
     // 遅延を挟んで相手のターンへ
     if (isConversing) { // Check if conversation is still active before scheduling next turn
-      // turnTimeoutId = setTimeout(() => nextTurn(wss, opponentAgent, currentAgent), 1000); // 遅延を削除または調整
+      console.log(`Proceeding to nextTurn for ${opponentAgent.name}.`);
       nextTurn(wss, opponentAgent, currentAgent); // すぐに次のターンへ
     }
   } else {
@@ -174,19 +203,34 @@ export function startConversation(wss: WebSocket.Server) {
     timestamp: new Date()
   };
   broadcastMessage(wss, firstBobMessage);
+  console.log("Broadcasted first Bob message. Setting up wait for playback.");
 
   // Bobの最初の発言の再生完了を待つ
   (async () => {
     if (wss.clients.size > 0) {
+        console.log(`Waiting for audio playback from ${wss.clients.size} clients for initial Bob message.`);
         const playbackPromises = Array.from(wss.clients).map(client => {
+            const clientIdentifier = client.toString(); // 仮
+            console.log(` - Setting up wait for client: ${clientIdentifier}`);
             if (client.readyState === WebSocket.OPEN) {
-                return waitForAudioPlaybackComplete(client);
+                return waitForAudioPlaybackComplete(client).catch(err => {
+                    console.error(`Error waiting for playback from ${clientIdentifier}:`, err);
+                    return Promise.resolve(); // エラー時も全体を止めない
+                });
             }
+            console.log(` - Client ${clientIdentifier} not open, resolving immediately.`);
             return Promise.resolve();
         });
-        await Promise.all(playbackPromises);
+        try {
+            await Promise.all(playbackPromises);
+            console.log("All clients completed audio playback for initial Bob message (or timed out/error).");
+        } catch (error) {
+            console.error("Error in Promise.all for initial Bob message playback:", error);
+        }
+    } else {
+        console.log("No clients connected, proceeding without waiting for playback.");
     }
-    // setTimeout(() => nextTurn(wss, agentA, agentB), 500); // ALVAのターンから開始
+    console.log("Proceeding to nextTurn for AgentA.");
     nextTurn(wss, agentA, agentB); // すぐにALVAのターンへ
   })();
 }
