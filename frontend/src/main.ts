@@ -43,7 +43,7 @@ function connectWebSocket() {
     try {
       // Consider adding more robust parsing and type validation here if needed
       const message = JSON.parse(event.data as string) as ChatMessage;
-      appendMessage(message);
+      const messageElement = appendMessage(message); // Get the created message element
 
       if (message.speaker === 'System' &&
           (message.text === '会話が終了しました。' ||
@@ -53,18 +53,41 @@ function connectWebSocket() {
         stopButton.disabled = true;
         startButton.style.display = 'block';
         stopButton.style.display = 'none';
-      } else if (isAlvaOrBob(message.speaker)) { // Use type guard
+      } else if (isAlvaOrBob(message.speaker) && messageElement) { // Use type guard and check if messageElement exists
         startButton.disabled = true;
         stopButton.disabled = false;
         startButton.style.display = 'none';
         stopButton.style.display = 'block';
-        // Capture the narrowed type in a local variable before the async closure
+        
         const speakerForAudio: 'ALVA' | 'Bob' = message.speaker;
         (async () => {
           await playMessageAudio(message.text, speakerForAudio);
+          
+          // Apply focus-out animation to the specific message element
+          messageElement.classList.remove('text-focus-in');
+          messageElement.classList.add('text-focus-out');
+
+          // Also apply focus-out to the quote source element
+          if (currentQuoteSourceElement) {
+            currentQuoteSourceElement.classList.remove('text-focus-in');
+            currentQuoteSourceElement.classList.add('text-focus-out');
+          }
+          
+          // Remove the elements after the animation completes
+          setTimeout(() => {
+            messageElement.remove();
+            // If quote source was animated out, ensure it's fully hidden/reset
+            if (currentQuoteSourceElement) {
+                // Check if it was the one associated with the removed message,
+                // though for now, we assume it's always the current one.
+                currentQuoteSourceElement.textContent = "";
+                currentQuoteSourceElement.classList.remove('text-focus-out'); // Clean up class
+                currentQuoteSourceElement.style.opacity = '0'; // Ensure hidden
+                currentQuoteSourceElement.style.filter = 'blur(5px)'; // Reset to blurred state for next use
+            }
+          }, ANIMATION_DURATION); // ANIMATION_DURATION should match CSS
+
           if (socket && socket.readyState === WebSocket.OPEN) {
-            // Using speakerForAudio here as well for consistency, though message.speaker would also be fine
-            // if the outer scope's narrowing is trusted by all TS versions/configurations.
             socket.send(JSON.stringify({ type: 'AUDIO_PLAYBACK_COMPLETE', speaker: speakerForAudio }));
           }
         })();
@@ -91,27 +114,17 @@ function connectWebSocket() {
   };
 }
 
-const TYPEWRITER_DELAY = 30; // ms per character
-const FADEOUT_DURATION = 500; // ms, should match CSS animation
+// const TYPEWRITER_DELAY = 30; // ms per character - Removed
+const ANIMATION_DURATION = 700; // ms, should match CSS animation for focus-in/out
 
 // Type guard to check if speaker is ALVA or Bob
 function isAlvaOrBob(speaker: ChatMessage['speaker']): speaker is 'ALVA' | 'Bob' {
   return speaker === 'ALVA' || speaker === 'Bob';
 }
 
-async function typewriterEffect(element: HTMLElement, text: string, cursor: HTMLElement, onComplete?: () => void) {
-  element.textContent = ''; // Clear existing text
-  for (let i = 0; i < text.length; i++) {
-    element.textContent += text[i];
-    await new Promise(resolve => setTimeout(resolve, TYPEWRITER_DELAY));
-  }
-  cursor.remove(); // Remove cursor when typing is done
-  if (onComplete) {
-    onComplete();
-  }
-}
+// async function typewriterEffect(element: HTMLElement, text: string, cursor: HTMLElement, onComplete?: () => void) { ... } // Removed
 
-function appendMessage(message: ChatMessage) {
+function appendMessage(message: ChatMessage): HTMLDivElement | null { // Return the message element or null
   if (message.speaker === 'System') {
     if (systemMessageContainer) {
       // Clear previous system messages
@@ -125,36 +138,27 @@ function appendMessage(message: ChatMessage) {
     } else {
       console.error("systemMessageContainer not found!");
     }
-    return; // System messages don't use the main chatArea animations
+    return null; // System messages don't use the main chatArea animations
   }
 
-  // Fade out existing messages in chatArea and clear current quote source
-  const existingMessages = chatArea.querySelectorAll('.message:not(.speaker-System)');
-  existingMessages.forEach(msg => {
-    msg.classList.add('message-fade-out');
-    setTimeout(() => msg.remove(), FADEOUT_DURATION);
-  });
-  // Clear and hide previous quote source
+  // Existing messages are not removed here anymore. They will be removed after TTS.
+
+  // Clear and hide previous quote source - this might need rethinking if multiple messages are on screen.
+  // For now, let's assume only one primary message's quote source is shown.
   if (currentQuoteSourceElement) {
     currentQuoteSourceElement.textContent = "";
-    currentQuoteSourceElement.classList.remove('quote-source-animate');
-    currentQuoteSourceElement.style.opacity = '0'; // Ensure it's hidden before new one animates
+    currentQuoteSourceElement.classList.remove('quote-source-animate'); // Or new focus animation class
+    currentQuoteSourceElement.style.opacity = '0';
   }
 
   const messageElement = document.createElement('div');
+  // Assign a unique ID to each message element for later reference (e.g., for removal)
+  messageElement.id = `message-${message.timestamp}-${Math.random().toString(36).substring(2, 9)}`;
   messageElement.classList.add('message', `speaker-${message.speaker}`);
-  // ALVA/Bob specific classes for potential different styling (e.g. text-align, color)
-  // These classes would need to be defined in style.css if used.
-  // Example:
-  // if (message.speaker === 'ALVA') messageElement.classList.add('message-alva');
-  // if (message.speaker === 'Bob') messageElement.classList.add('message-bob');
 
-  // message.speaker is 'ALVA' | 'Bob' at this point due to the early return for 'System'.
-  const currentSpeaker = message.speaker; // This will be 'ALVA' or 'Bob'
+  const currentSpeaker = message.speaker;
 
-  // Determine messageTextContent (for main display) and displayAuthorName (for quote source)
-  // Also determine textForBackgroundLog
-  let messageTextContent = message.text; // Start with the full original text
+  let messageTextContent = message.text;
   let displayAuthorName: string;
   let extractedAuthorForBg: string | null = null;
 
@@ -162,65 +166,50 @@ function appendMessage(message: ChatMessage) {
   if (authorMatch && authorMatch[1]) {
     extractedAuthorForBg = authorMatch[1].trim();
     displayAuthorName = extractedAuthorForBg;
-    // For main display, strip the author part from messageTextContent
     messageTextContent = messageTextContent.substring(0, messageTextContent.lastIndexOf(authorMatch[0])).trim();
   } else {
-    displayAuthorName = currentSpeaker; // Default to speaker name for main quote source
-    // messageTextContent remains as is (no author in parentheses to strip for main display)
+    displayAuthorName = currentSpeaker;
   }
 
-  // Update background conversation log for ALVA and Bob messages
-  if (backgroundLogElement) { // No need to check speaker, System messages returned early
-    let textForBackgroundLog = messageTextContent; // This is now the quote text (author stripped if was present)
-    if (extractedAuthorForBg) { // If an author was found in parentheses
+  if (backgroundLogElement) {
+    let textForBackgroundLog = messageTextContent;
+    if (extractedAuthorForBg) {
       textForBackgroundLog = `${messageTextContent} (${extractedAuthorForBg})`;
     }
-    // If no author in parentheses, textForBackgroundLog is just messageTextContent (quote only)
-
     let logEntry = "";
     if (message.speaker === 'ALVA') {
       logEntry = `<span class="bg-log-alva">${textForBackgroundLog}</span> `;
     } else { // Bob
       logEntry = `${textForBackgroundLog} `;
     }
-    fullConversationText += logEntry;
-    backgroundLogElement.innerHTML = fullConversationText;
-    backgroundLogElement.scrollTop = backgroundLogElement.scrollHeight;
+    fullConversationText += logEntry; // Prepend for right-to-left flow if needed, or append and rely on scroll
+    
+    // For vertical-rl with direction: rtl, new content should appear on the right.
+    // innerHTML will re-render, consider appendChild with spans if performance is an issue.
+    backgroundLogElement.innerHTML = fullConversationText; 
+    
+    // Scroll to the far right (which is the "start" or "newest" in vertical-rl with direction: rtl)
+    backgroundLogElement.scrollLeft = 0; 
   }
 
-  const quoteTextContainer = document.createElement('div'); // Container for text and cursor
-  quoteTextContainer.classList.add('quote-text-container'); // For potential styling
-
-  const quoteTextElement = document.createElement('span'); // Use span for inline behavior with cursor
+  const quoteTextElement = document.createElement('p'); // Use <p> for the message text
   quoteTextElement.classList.add('quote-text');
-  // quoteTextElement.textContent = messageTextContent; // Text will be set by typewriter
+  quoteTextElement.textContent = messageTextContent; // Set text directly
 
-  const cursorElement = document.createElement('span');
-  cursorElement.classList.add('typewriter-cursor');
-
-  quoteTextContainer.appendChild(quoteTextElement);
-  quoteTextContainer.appendChild(cursorElement);
-  messageElement.appendChild(quoteTextContainer);
-
-  // Note: The authorElement <p class="quote-source"> is no longer created per message.
-  // We will update the #currentQuoteSource element instead.
-
+  messageElement.appendChild(quoteTextElement);
   chatArea.appendChild(messageElement);
-  messageElement.classList.add('message-fade-in'); // Trigger fade-in
 
-  // Start typewriter after a short delay to allow fade-in to start
-  setTimeout(() => {
-    typewriterEffect(quoteTextElement, messageTextContent, cursorElement, () => {
-      // After typewriter is complete, update and animate the dedicated quote source element
-      if (currentQuoteSourceElement) {
-        currentQuoteSourceElement.textContent = `— ${displayAuthorName}`;
-        currentQuoteSourceElement.style.opacity = '0'; // Reset for animation
-        // Force reflow before adding animation class to ensure transition plays
-        void currentQuoteSourceElement.offsetWidth; 
-        currentQuoteSourceElement.classList.add('quote-source-animate');
-      }
-    });
-  }, 100); // Small delay for fade-in to kick in
+  // Apply focus-in animation
+  messageElement.classList.add('text-focus-in');
+
+  // Update and show the dedicated quote source element
+  // This will show the source for the LATEST message.
+  if (currentQuoteSourceElement) {
+    currentQuoteSourceElement.textContent = `— ${displayAuthorName}`;
+    currentQuoteSourceElement.classList.remove('text-focus-out'); // Ensure no lingering out animation
+    currentQuoteSourceElement.classList.add('text-focus-in'); // Apply focus-in animation
+  }
+  return messageElement; // Return the created message element
 }
 
 // --- TTS再生機能 ---

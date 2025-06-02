@@ -1,16 +1,17 @@
-/* CSS Variables for Cyberpunk Theme */
+/* CSS Variables for Greyscale Theme */
 :root {
-  --color-background: #0A1931; /* Deep Blue */
-  --color-surface: rgba(20, 30, 50, 0.7); /* Transparent Dark */
-  --color-accent1: #00FFFF; /* Electric Blue */
-  --color-accent2: #39FF14; /* Neon Green */
-  --color-text-primary: #E0E0E0; /* Very Light Gray */
+  --color-background: #000000; /* Black */
+  --color-surface: rgba(40, 40, 40, 0.75); /* Dark Grey, slightly transparent */
+  --color-accent1: #B0B0B0; /* Light Grey */
+  --color-accent2: #808080; /* Medium Grey */
+  --color-text-primary: #E0E0E0; /* Very Light Gray / Off-white */
   --color-text-highlight: #FFFFFF; /* White */
-  --color-text-quote-source: rgba(180, 180, 180, 0.6); /* Transparent Gray */
+  --color-text-quote-source: #A0A0A0; /* Grey for quote source */
+  --color-text-primary-rgb: 224, 224, 224; /* RGB for opacity usage */
 
-  /* Fonts - Prioritize cyberpunk/monospace, fallback to system fonts */
-  --font-primary: 'Courier New', Courier, monospace; /* Example, can be changed */
-  --font-display: 'Orbitron', sans-serif; /* Example for headings or special text, if needed */
+  /* Fonts - Prioritize Mincho, fallback to system serif fonts */
+  --font-primary: "MS Mincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif;
+  --font-display: "MS Mincho", "Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif; /* Consistent for display */
 }
 
 /* Basic Reset & Global Styles */
@@ -23,7 +24,7 @@
 html, body {
   width: 100%;
   height: 100%;
-  overflow: hidden; /* Prevent scrollbars */
+  overflow: hidden; /* Prevent scrollbars on html/body */
 }
 
 body {
@@ -33,33 +34,12 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  position: relative; /* For background animation pseudo-element */
+  position: relative;
+  /* Default to horizontal writing mode, components will override */
+  writing-mode: horizontal-tb;
 }
 
-/* Subtle Background Animation (Noise/Static) */
-body::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  background-size: 200px 200px; /* Adjust for desired grain size */
-  opacity: 0.03; /* Very subtle */
-  animation: subtleNoise 0.5s steps(2) infinite;
-  z-index: -1; /* Behind all content */
-  pointer-events: none;
-}
-
-@keyframes subtleNoise {
-  0% { transform: translate(0, 0); }
-  25% { transform: translate(-2px, 2px); }
-  50% { transform: translate(2px, -2px); }
-  75% { transform: translate(2px, 2px); }
-  100% { transform: translate(0, 0); }
-}
-
+/* Removed background noise animation (body::before and @keyframes subtleNoise) */
 
 /* Main Application Container */
 #app {
@@ -68,9 +48,9 @@ body::before {
   height: 100vh;
   position: relative;
   display: flex;
-  flex-direction: column;
-  justify-content: center; /* Vertically center chat area */
-  align-items: center; /* Horizontally center chat area */
+  flex-direction: column; /* Main axis is vertical (for horizontal text) */
+  justify-content: center;
+  align-items: center;
   padding: 20px;
 }
 
@@ -78,137 +58,206 @@ body::before {
 #chatArea {
   width: 80%; /* Adjust as needed */
   max-width: 800px; /* Max width for chat text */
-  height: 50%; /* Adjust as needed - Reverted from 30% */
+  height: 60%; /* Adjust as needed */
   display: flex;
-  flex-direction: column;
-  justify-content: center; /* Vertically center messages */
-  align-items: center; /* Horizontally center messages content within chatArea */
-  overflow: hidden; /* Hide messages that scroll out of view */
-  position: relative; /* For positioning messages and quote source within */
-  border: 1px solid var(--color-accent1); /* Reverted from none */
-  background-color: var(--color-surface);
+  /* For vertical-rl, flex-direction: column means items stack horizontally */
+  flex-direction: row; /* Changed to row to align messages vertically along the main axis */
+  justify-content: space-between; /* Distribute ALVA to right, Bob to left */
+  align-items: flex-start; /* Align items to the start of the cross-axis (top in vertical-rl) */
+  overflow: hidden;
+  position: relative;
+  border: none; /* Removed border */
+  background-color: transparent; /* Chat area background transparent, body is black */
   padding: 20px;
   border-radius: 5px;
+  writing-mode: vertical-rl; /* Vertical text, right to left */
+  text-orientation: mixed;
+  font-size: 2.5em; /* Larger font for vertical text readability */
+  line-height: 1.8;
 }
 
-/* Message Styling (Basic Structure for now) */
+/* Message Styling */
 .message {
-  width: auto; /* Fit content */
-  max-width: 95%; /* Max width within chatArea, ensure it's less than chatArea's padding allows */
+  /* For vertical text, width is height and height is width */
+  max-height: 90%; /* Max height of a single message block (effectively width in vertical) */
+  /* width: auto; /* Let content determine width (height in vertical) */
+  height: auto; /* Let content determine height (width in vertical) */
   padding: 10px 15px;
-  margin-bottom: 15px; /* Space between messages */
-  opacity: 0; /* Start transparent for fade-in animation */
-  transform: translateY(20px); /* Start slightly lower for fade-in animation */
-  /* transition: opacity 0.5s ease-out, transform 0.5s ease-out; */ /* Removed to control via animation classes */
-  font-size: 1.0em; /* Adjust as needed */
-  line-height: 1.6;
+  /* margin-left: 15px; /* Space between messages (horizontal in vertical-rl) - Handled by justify-content */
+  opacity: 0; /* Start transparent for focus-in animation */
+  filter: blur(5px); /* Start blurred */
+  /* transition for animations will be handled by animation classes */
   color: var(--color-text-primary);
-  /* border-left: 3px solid var(--color-accent2); Optional accent */
+  display: flex; /* To help control inner content if needed */
+  flex-direction: column; /* Inner content flows top-to-bottom (right-to-left in vertical) */
 }
 
 .message p {
   margin: 0;
+  writing-mode: vertical-rl; /* Ensure p tags also inherit */
+  text-orientation: mixed;
+  white-space: normal; /* Allow text to wrap to new columns (lines in vertical) */
+  max-width: 100%; /* Ensure text wraps within the message's height (effective width) */
 }
 
-/* Specific speaker alignment (will be refined with animations) */
+/* Specific speaker alignment for vertical text with #chatArea flex-direction: row */
+/* ALVA messages will be on the right (start of vertical-rl flow in a row container) */
+/* Bob messages will be on the left (end of vertical-rl flow in a row container) */
+/* We can use order or rely on the natural order if elements are appended correctly.
+   Let's ensure #chatArea itself handles the primary alignment.
+   The speaker-ALVA and speaker-Bob classes can be used for fine-tuning if needed,
+   but the primary left/right positioning should come from #chatArea's flex properties.
+*/
+
 .message.speaker-ALVA {
-  text-align: left; /* Or right, depending on final design */
-  /* color: var(--color-accent1); */
+  /* No specific align-self needed if #chatArea's justify-content handles it. */
+  /* text-align: right; /* Text alignment within the message box (top in vertical) - this is for horizontal text */
+  /* For vertical text, text-align affects the inline direction (top to bottom).
+     The block direction (right to left for lines) is controlled by writing-mode.
+     If we want text within a message to align to its "top" (right edge of the box),
+     this is default for vertical-rl.
+  */
 }
 
 .message.speaker-Bob {
-  text-align: left; /* Or left, depending on final design */
-  /* color: var(--color-accent2); */
+  /* No specific align-self needed. */
 }
 
-/* Quote text and source styling (placeholders) */
+/* Ensure chatArea can grow if content is large, but also has a max size */
+#chatArea {
+    /* ... existing styles ... */
+    /* flex-direction: row; */ /* This was set above */
+    /* justify-content: space-between; /* This was set above */
+    /* align-items: flex-start; /* This was set above */
+}
+
+
+/* Quote text and source styling (placeholders) - adjust for vertical */
 .quote-text {
   /* Styles for the main quote text */
 }
 
 .quote-source {
-  display: block; /* Ensure block display behavior */
-  font-size: 1.2em;
+  display: block;
+  font-size: 1.0em; /* Adjusted for vertical */
   color: var(--color-text-quote-source);
-  opacity: 0; /* Hidden initially, animated by JS */
+  opacity: 0; /* Start transparent for focus-in animation */
+  filter: blur(5px); /* Start blurred, same as .message */
   position: absolute;
-  bottom: 10px; /* Position at the bottom of chatArea */
-  right: 15px;  /* Position at the right of chatArea */
-  text-align: right;
-  width: auto; /* Allow it to size based on content */
-  max-width: calc(100% - 30px); /* Max width considering padding of parent */
+  /* For vertical-rl, bottom/right become left/bottom effectively */
+  left: 10px; /* Was bottom */
+  bottom: 15px; /* Was right */
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  text-align: left; /* Corresponds to bottom in vertical */
+  max-height: calc(100% - 30px); /* Was max-width */
   font-family: var(--font-primary);
-  z-index: 10; /* Ensure it's above other text flow within its context */
+  z-index: 10;
 }
 
+/* If HTML cannot be changed, adjust #controls and #systemMessageContainer individually */
+/* #bottomControlsContainer style removed as it's not in HTML */
 
-/* Controls (Basic Styling for now) */
 #controls {
   position: absolute;
-  top: 20px;
-  left: 20px; /* Or right, or centered, per final design */
+  bottom: 20px;
+  left: calc(50% + 5px); /* Positioned to the right of the screen's vertical center, with a 5px gap from center */
+  transform: translateX(0%); /* Align the left edge of controls to this calculated 'left' position */
   z-index: 100;
+  display: flex; /* Make buttons line up horizontally */
 }
 
 #controls button {
   background-color: var(--color-surface);
   color: var(--color-accent1);
   border: 1px solid var(--color-accent1);
-  padding: 10px 20px;
-  margin-right: 10px;
+  padding: 8px 15px; /* Slightly smaller buttons */
+  margin-left: 10px; /* margin-right for LTR, margin-left for RTL or if order is reversed */
   border-radius: 3px;
   cursor: pointer;
   font-family: var(--font-primary);
-  font-size: 1em;
+  font-size: 0.9em;
   transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
+}
+
+#controls button:first-child {
+  margin-left: 0;
 }
 
 #controls button:hover {
   background-color: var(--color-accent1);
   color: var(--color-background);
-  box-shadow: 0 0 10px var(--color-accent1);
+  box-shadow: 0 0 8px var(--color-accent1);
 }
 
 #controls button:disabled {
-  background-color: #222; /* Darker, less prominent */
-  color: #666;
-  border-color: #444;
+  background-color: rgba(50,50,50,0.5);
+  color: #888;
+  border-color: #666;
   cursor: not-allowed;
 }
 
 /* System Messages */
 #systemMessageContainer {
   position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: auto;
-  max-width: 90%;
+  bottom: 20px; /* Align with controls */
+  left: calc(50% - 5px); /* Positioned to the left of the screen's vertical center, with a 5px gap from center */
+  transform: translateX(-100%); /* Align the right edge of system message to this calculated 'left' position */
+  width: auto; /* Allow width to be determined by content */
+  max-width: 45%; /* Max width to prevent overlap and ensure it stays to the left */
   z-index: 50;
 }
 
 .message.speaker-System {
-  background-color: rgba(0,0,0,0.7); /* Darker, more subtle */
-  color: var(--color-text-quote-source);
+  background-color: var(--color-surface); /* Consistent with other elements */
+  color: var(--color-text-highlight); /* Brighter color for visibility */
   font-size: 0.9em;
   padding: 8px 15px;
   border-radius: 3px;
   text-align: center;
-  opacity: 1; /* System messages are always visible if present */
-  transform: none; /* No animation by default */
+  opacity: 1 !important; /* Ensure visibility */
+  filter: none !important; /* Ensure no blur */
+  transform: none;
   margin-bottom: 0;
-  /* Remove border from general .message if not desired for system messages */
-  /* border-left: none; */
+  writing-mode: horizontal-tb; /* System messages remain horizontal */
 }
 
-/*
-  Placeholder for future animations:
-  - Typewriter
-  - Fade-in / Fade-out for quotes
-  - Quote source animation
-*/
+/* New Animations for Focus In/Out with Blur */
+@keyframes focusIn {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: scale(0.95); /* Optional: slight scale effect */
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
 
-/* New Animations */
+.text-focus-in {
+  animation: focusIn 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes focusOut {
+  from {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    filter: blur(5px);
+    transform: scale(0.95); /* Optional: slight scale effect */
+  }
+}
+
+.text-focus-out {
+  animation: focusOut 0.7s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+}
+
+/* Remove or repurpose old animations if not needed */
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
@@ -216,126 +265,67 @@ body::before {
 
 .typewriter-cursor {
   display: inline-block;
-  width: 0.1em;
-  height: 1.2em; /* Should match line-height of text */
+  width: 0.1em; /* Adjust for vertical text if used there */
+  height: 1.2em;
   background-color: var(--color-accent1);
   animation: blink 0.7s infinite;
-  margin-left: 2px;
-  vertical-align: middle;
+  margin-top: 2px; /* For vertical text, use margin-top or adjust alignment */
+  vertical-align: middle; /* May need adjustment for vertical */
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.message-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-20px); /* Move up slightly as it fades */
-  }
-}
-
-.message-fade-out {
-  animation: fadeOut 0.5s ease-out forwards;
-}
-
-@keyframes fadeInQuickThenSlowFadeOut {
-  0% { opacity: 0; transform: translateY(5px); }
-  20% { opacity: 1; transform: translateY(0); }
-  80% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-5px); }
-}
-
-.quote-source-animate {
-  animation: fadeInQuickThenSlowFadeOut 5s ease-in-out forwards;
-  /* animation-delay is handled by JS after typewriter */
-}
-
-/* Remove or comment out old animations */
-/*
-@keyframes fadeInMoveUpAndFadeOut {
-  0% {
-    opacity: 0;
-    transform: translateY(100px) scale(0.8);
-  }
-  15% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  85% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-150px) scale(1.1);
-  }
-}
-
-.message.animate-message {
-  animation-name: fadeInMoveUpAndFadeOut;
-  animation-duration: 5s;
-  animation-timing-function: ease-in-out;
-  animation-fill-mode: forwards;
-}
+/* Keep fadeIn and fadeOut if used by quote source or other elements,
+   otherwise, they can be removed if focusIn/Out is the primary message animation.
+   The request was for blur animation for messages.
 */
+@keyframes fadeIn {
+  /* ... (keep if needed by other elements like quote source) ... */
+}
+/* .message-fade-in, .message-fade-out, .quote-source-animate can be removed if not used */
+/* Removing old fadeInMoveUpAndFadeOut animation */
 
 /* Background Conversation Log Styles */
 #backgroundConversationLog {
   position: fixed;
   top: 0;
+  right: 0; /* Start from the right edge */
+  bottom: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: -2; /* Behind #app and body::before noise */
-  color: rgba(var(--color-text-primary-rgb, 224, 224, 224), 0.3); /* Very faint text - Reverted alpha from 0.4 */
+  z-index: -2; /* Behind all other content */
+  color: rgba(var(--color-text-primary-rgb, 224, 224, 224), 0.35); /* Even fainter text */
   font-family: var(--font-primary);
-  font-size: 1.2em; /* Smaller than main text - Reverted from 2.0em */
-  line-height: 1.3;
-  overflow-y: auto; /* Allow vertical scrolling */
-  /* Hide scrollbar for Webkit browsers (Chrome, Safari, Edge) */
-  /* Note: This is a non-standard pseudo-element */
-  /* Hide scrollbar for Firefox */
-  scrollbar-width: none;
-  /* Hide scrollbar for IE/Edge (older versions) */
-  -ms-overflow-style: none;
-  padding: 10px;
-  white-space: pre-wrap; /* Preserve newlines and wrap long lines */
-  word-break: break-all; /* Break long words if necessary to prevent overflow */
-  pointer-events: none; /* Make it non-interactive */
-  /* To use --color-text-primary with opacity, we need its RGB values.
-     Let's assume E0E0E0 -> 224,224,224.
-     If CSS variables level 4 color-mix is available, that's better.
-     For now, hardcoding or using a separate RGB variable is an option.
-     Let's define --color-text-primary-rgb in :root if not already.
-     For simplicity here, I'll use a direct rgba value.
+  font-size: 1.8em; /* Slightly larger for readability as background */
+  line-height: 1.4;
+  writing-mode: vertical-rl; /* Vertical text, right to left */
+  text-orientation: mixed;
+  text-align: left; /* For vertical-rl, 'left' should align text to the top of the line/column */
+  white-space: normal; /* Allow content to wrap into multiple columns */
+  overflow-x: auto; /* Allow horizontal scrolling for columns */
+  overflow-y: hidden; /* Hide vertical scrollbar */
+  scrollbar-width: none; /* Hide scrollbar for Firefox */
+  -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+  padding: 20px; /* Padding on all sides */
+  padding-right: 50px; /* More padding on the right to ensure text starts visibly from edge */
+  pointer-events: none;
+  direction: ltr; /* Keep ltr, new content added to JS string, scroll handled by JS */
+  /* The content itself will flow from right to left due to vertical-rl.
+     New text is appended to the string, and we scroll to the "end" (leftmost).
+     Or, if we want it to fill from right and scroll right, we need to prepend and scroll to 0.
+     The request is "screen's right edge from similarly unbreakingly packed... screen's lower left... scroll to the right"
+     This implies content fills from right, and when full, the *view* shifts right, meaning older content moves left.
+     So, new content is on the right. `direction: rtl` with `scrollLeft = 0` achieves this.
   */
+  direction: rtl; /* New content on right, scrollLeft=0 is rightmost */
 }
+
 #backgroundConversationLog::-webkit-scrollbar {
   display: none; /* Hide scrollbar for Webkit browsers */
 }
 
-#backgroundConversationLog .bg-log-alva {
-  font-weight: bold;
-  /* Optionally, a slightly different faint color for ALVA if desired */
-  /* color: rgba(var(--color-accent1-rgb, 0, 255, 255), 0.08); */
+#backgroundConversationLog .bg-log-alva,
+#backgroundConversationLog .bg-log-bob {
+  /* Minimal styling for background log, can add subtle differences if needed */
+  display: inline; /* Keep them on the same continuous line */
 }
-
-/* Add --color-text-primary-rgb to :root for better maintainability */
-/* This should be added inside the :root selector block */
-/* For now, the rgba in #backgroundConversationLog will work. */
+/* Ensure --color-text-primary-rgb is defined in :root */
