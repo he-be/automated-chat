@@ -159,10 +159,10 @@ body {
 /* #bottomControlsContainer style removed as it's not in HTML */
 
 #controls {
-  position: absolute;
+  position: fixed; /* Changed to fixed for viewport-relative positioning */
   bottom: 20px;
-  left: calc(50% + 5px); /* Positioned to the right of the screen's vertical center, with a 5px gap from center */
-  transform: translateX(0%); /* Align the left edge of controls to this calculated 'left' position */
+  left: 20px; /* Positioned to the left bottom corner */
+  transform: none; /* Reset transform */
   z-index: 100;
   display: flex; /* Make buttons line up horizontally */
 }
@@ -197,15 +197,17 @@ body {
   cursor: not-allowed;
 }
 
-/* System Messages */
+/* System Messages - Hide */
 #systemMessageContainer {
-  position: absolute;
-  bottom: 20px; /* Align with controls */
-  left: calc(50% - 5px); /* Positioned to the left of the screen's vertical center, with a 5px gap from center */
-  transform: translateX(-100%); /* Align the right edge of system message to this calculated 'left' position */
-  width: auto; /* Allow width to be determined by content */
-  max-width: 45%; /* Max width to prevent overlap and ensure it stays to the left */
-  z-index: 50;
+  display: none; /* Hide system messages */
+  /* Original positioning for reference if needed later */
+  /* position: absolute; */
+  /* bottom: 20px; */
+  /* left: calc(50% - 5px); */
+  /* transform: translateX(-100%); */
+  /* width: auto; */
+  /* max-width: 45%; */
+  /* z-index: 50; */
 }
 
 .message.speaker-System {
@@ -329,3 +331,50 @@ body {
   display: inline; /* Keep them on the same continuous line */
 }
 /* Ensure --color-text-primary-rgb is defined in :root */
+
+/* Media Query for smaller screens (e.g., smartphones) */
+@media (max-width: 768px) {
+  #chatArea {
+    font-size: 1.8em; /* Smaller font size for mobile */
+    /* Adjust padding or other properties if needed */
+    padding: 10px;
+  }
+
+  .message {
+    padding: 8px 10px; /* Adjust message padding */
+  }
+
+  .quote-source {
+    font-size: 0.8em; /* Adjust quote source font size */
+    left: 5px;
+    bottom: 10px;
+  }
+
+  #controls button {
+    padding: 6px 10px;
+    font-size: 0.8em;
+  }
+
+  .message.speaker-System {
+    font-size: 0.8em;
+    padding: 6px 10px;
+  }
+  
+  #backgroundConversationLog {
+    font-size: 1.2em; /* Smaller font for background log on mobile */
+    padding: 10px;
+    padding-right: 20px; /* Adjust padding */
+  }
+}
+
+@media (max-width: 480px) { /* Even smaller screens */
+  #chatArea {
+    font-size: 1.5em; 
+  }
+  #backgroundConversationLog {
+    font-size: 1.0em;
+  }
+   .quote-source {
+    font-size: 0.7em;
+  }
+}
