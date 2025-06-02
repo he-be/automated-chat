@@ -19,12 +19,16 @@ export abstract class AIAgent {
     // システムプロンプトは履歴の最初のメッセージとして扱う
     messages.push({ role: 'user', parts: [{ text: this.systemPrompt }] });
 
-    this.history.forEach(msg => {
+    // 直近3回の会話履歴を取得
+    const recentHistory = this.history.slice(-3);
+
+    recentHistory.forEach(msg => {
       if (msg.speaker === this.name) {
         messages.push({ role: 'model', parts: [{ text: msg.text }] });
       } else if (msg.speaker === 'ALVA' || msg.speaker === 'Bob') { // 相手の発言
         messages.push({ role: 'user', parts: [{ text: msg.text }] });
       }
+      // Systemメッセージはコンテキストに含めない（もしあれば）
     });
     return messages;
   }
