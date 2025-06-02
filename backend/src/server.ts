@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import http from 'http';
 import WebSocket from 'ws';
+import { body, validationResult } from 'express-validator'; // express-validatorをインポート
 import dotenv from 'dotenv';
 import path from 'path';
 import { startConversation, getConversationHistory, stopConversation as stopConv, notifyAudioPlaybackComplete, handleClientDisconnect } from './conversationManager'; // notifyAudioPlaybackComplete, handleClientDisconnect をインポート
@@ -41,8 +42,13 @@ wss.on('connection', (ws) => {
     try {
       const parsedMessage = JSON.parse(message.toString());
       if (parsedMessage.type === 'AUDIO_PLAYBACK_COMPLETE') {
-        console.log(`Received AUDIO_PLAYBACK_COMPLETE from client for speaker: ${parsedMessage.speaker}`);
-        notifyAudioPlaybackComplete(ws); // wsオブジェクトを渡す
+        // parsedMessage.speaker の存在や型を検証
+        if (typeof parsedMessage.speaker === 'string' && parsedMessage.speaker.trim() !== '') {
+            console.log(`Received AUDIO_PLAYBACK_COMPLETE from client for speaker: ${parsedMessage.speaker}`);
+            notifyAudioPlaybackComplete(ws); // wsオブジェクトを渡す
+        } else {
+            console.warn('Received AUDIO_PLAYBACK_COMPLETE with invalid or missing speaker.');
+        }
       } else {
         // 従来の文字列ベースのメッセージも処理 (後方互換性のため)
         const messageString = message.toString();
@@ -97,9 +103,31 @@ const getLanguageCode = (selectLanguage: string): string => {
   }
 };
 
-app.post('/api/tts', async (req: Request, res: Response) => {
-  const body = req.body;
-  const message = body.message;
+app.post('/api/tts',
+  // バリデーションルールの定義
+  body('message').isString().notEmpty().withMessage('Message is required and must be a string.'),
+  body('stylebertvits2ModelId').optional().isInt({ min: 0 }).withMessage('Model ID must be a non-negative integer.'),
+  body('stylebertvits2SpeakerId').optional().isInt({ min: 0 }).withMessage('Speaker ID must be a non-negative integer.'),
+  body('stylebertvits2ServerUrl').optional().isURL().withMessage('Server URL must be a valid URL.'),
+  body('stylebertvits2ApiKey').optional().isString().withMessage('API Key must be a string.'),
+  body('stylebertvits2Style').optional().isString().withMessage('Style must be a string.'),
+  body('stylebertvits2SdpRatio').optional().isFloat({ min: 0, max: 1 }).withMessage('SDP Ratio must be a float between 0 and 1.'),
+  body('stylebertvits2Noise').optional().isFloat({ min: 0, max: 1 }).withMessage('Noise must be a float between 0 and 1.'),
+  body('stylebertvits2NoiseW').optional().isFloat({ min: 0, max: 2 }).withMessage('NoiseW must be a float between 0 and 2.'), // 例: 範囲は適宜調整
+  body('stylebertvits2Length').optional().isFloat({ min: 0.1, max: 5 }).withMessage('Length must be a float between 0.1 and 5.'), // 例: 範囲は適宜調整
+  body('selectLanguage').isIn(['ja', 'en', 'zh']).withMessage('Select Language must be one of ja, en, zh.'),
+  body('stylebertvits2AutoSplit').optional().isBoolean().withMessage('Auto Split must be a boolean.'),
+  body('stylebertvits2SplitInterval').optional().isFloat({ min: 0.1 }).withMessage('Split Interval must be a positive float.'),
+  body('stylebertvits2AssistTextWeight').optional().isFloat({ min: 0, max: 1 }).withMessage('Assist Text Weight must be a float between 0 and 1.'),
+  body('stylebertvits2StyleWeight').optional().isFloat({ min: 0, max: 1 }).withMessage('Style Weight must be a float between 0 and 1.'),
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const body = req.body;
+    const message = body.message;
   const stylebertvits2ModelId = body.stylebertvits2ModelId;
   const stylebertvits2SpeakerId = body.stylebertvits2SpeakerId; // New
   const stylebertvits2ServerUrl =
@@ -164,9 +192,10 @@ app.post('/api/tts', async (req: Request, res: Response) => {
 
       if (!voiceResponse.ok) {
         const errorText = await voiceResponse.text();
-        console.error(`TTS Server Error: ${voiceResponse.status}`, errorText);
+        console.error(`TTS Server Error: ${voiceResponse.status}`, errorText); // 詳細ログ
+        // クライアントには汎用的なメッセージを返す
         throw new Error(
-          `サーバーからの応答が異常です。ステータスコード: ${voiceResponse.status}. ${errorText}`
+          `TTS処理中にエラーが発生しました。しばらくしてから再度お試しください。`
         );
       }
 
@@ -212,9 +241,10 @@ app.post('/api/tts', async (req: Request, res: Response) => {
 
       if (!voiceResponse.ok) {
         const errorText = await voiceResponse.text();
-        console.error(`TTS Server Error (Runpod): ${voiceResponse.status}`, errorText);
+        console.error(`TTS Server Error (Runpod): ${voiceResponse.status}`, errorText); // 詳細ログ
+        // クライアントには汎用的なメッセージを返す
         throw new Error(
-          `サーバーからの応答が異常です。ステータスコード: ${voiceResponse.status}. ${errorText}`
+          `TTS処理中にエラーが発生しました。しばらくしてから再度お試しください。`
         );
       }
 
@@ -234,8 +264,9 @@ app.post('/api/tts', async (req: Request, res: Response) => {
       }
     }
   } catch (error: any) {
-    console.error('TTS Error:', error);
-    res.status(500).json({ error: error.message || 'Internal Server Error' });
+    console.error('TTS Error:', error); // 詳細ログ
+    // クライアントには汎用的なメッセージ
+    res.status(500).json({ error: 'TTSリクエストの処理中に内部エラーが発生しました。' });
   }
 });
 
