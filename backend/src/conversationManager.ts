@@ -155,7 +155,19 @@ export function startConversation(wss: WebSocket.Server) {
   broadcastMessage(wss, initialMessage);
   
   // Bobから会話を開始
-  const firstPromptForBob = "それで僕は、ポケットからあの赤いハンチングを出してかぶったんだ。 (ライ麦畑でつかまえて）";
+  const bobInitialQuotes = [
+    "言葉とは、誤解の源泉である。（アントワーヌ・ド・サン＝テグジュペリ）",
+    "意味は使用のうちにある。（ルートヴィヒ・ウィトゲンシュタイン）",
+    "すべての言葉は、それ自体が一個の詩である。（ラルフ・ウォルド・エマーソン）",
+    "言葉は思考の直接の現実である。（カール・マルクス）",
+    "およそ言葉は、思想を伝達する機関として甚だ不完全なものである。（夏目漱石)",
+    "テクストとは、無数の文化の中心から引き出された引用の織物である。（ロラン・バルト）",
+    "人は言葉の助けをかりて嘘をつくが、身振りにおいては真実がにじみ出る。（フリードリヒ・ニーチェ）",
+    "言葉の最も恐るべきところは、それが美しくなりうることだ。（ポール・ヴァレリー）"
+  ];
+  const randomIndex = Math.floor(Math.random() * bobInitialQuotes.length);
+  const firstPromptForBob = bobInitialQuotes[randomIndex];
+  
   const firstBobMessage: ChatMessage = {
     speaker: 'Bob',
     text: firstPromptForBob,
