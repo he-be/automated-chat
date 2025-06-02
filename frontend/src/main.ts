@@ -326,21 +326,17 @@ startButton.addEventListener('click', async () => {
     }
   }
   
-  // HTTP POSTで会話開始をトリガー
-  try {
-    const response = await fetch('/start-conversation', { method: 'POST' });
-    if (response.ok) {
-      appendMessage({ speaker: 'System', text: '会話開始リクエストを送信しました。', timestamp: new Date().toISOString() });
-      startButton.disabled = true;
-      stopButton.disabled = false;
-      startButton.style.display = 'none';
-      stopButton.style.display = 'block';
-    } else {
-      appendMessage({ speaker: 'System', text: `会話開始リクエスト失敗: ${response.statusText}`, timestamp: new Date().toISOString() });
-    }
-  } catch (error) {
-    console.error('会話開始リクエストの送信に失敗しました:', error);
-    appendMessage({ speaker: 'System', text: `会話開始リクエストエラー: ${(error as Error).message}`, timestamp: new Date().toISOString() });
+  // WebSocketで会話開始をトリガー
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send('START_CONVERSATION');
+    appendMessage({ speaker: 'System', text: '会話開始リクエストを送信しました。', timestamp: new Date().toISOString() });
+    // ボタンの状態はサーバーからの応答メッセージに基づいて更新されるため、ここでは直接変更しない
+    // startButton.disabled = true;
+    // stopButton.disabled = false;
+    // startButton.style.display = 'none';
+    // stopButton.style.display = 'block';
+  } else {
+    appendMessage({ speaker: 'System', text: 'WebSocketが接続されていません。会話を開始できません。', timestamp: new Date().toISOString() });
   }
 });
 

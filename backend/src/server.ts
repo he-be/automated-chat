@@ -3,7 +3,7 @@ import http from 'http';
 import WebSocket from 'ws';
 import dotenv from 'dotenv';
 import path from 'path';
-import { startConversation, getConversationHistory, stopConversation as stopConv, notifyAudioPlaybackComplete } from './conversationManager'; // notifyAudioPlaybackComplete をインポート
+import { startConversation, getConversationHistory, stopConversation as stopConv, notifyAudioPlaybackComplete, handleClientDisconnect } from './conversationManager'; // notifyAudioPlaybackComplete, handleClientDisconnect をインポート
 import { ChatMessage } from './types';
 
 // dotenv.config({ path: path.join(__dirname, '..', '.env') }); // dotenv-cliを使用するため不要
@@ -30,8 +30,8 @@ if (process.env.NODE_ENV === 'production') {
 wss.on('connection', (ws) => {
   console.log('Client connected');
 
-  // 接続時に現在の会話履歴を送信
-  const history = getConversationHistory();
+  // 接続時に現在の会話履歴を送信 (クライアントごとの履歴を取得)
+  const history = getConversationHistory(ws);
   history.forEach(msg => ws.send(JSON.stringify(msg)));
 
   ws.on('message', (message) => {
@@ -47,18 +47,18 @@ wss.on('connection', (ws) => {
         // 従来の文字列ベースのメッセージも処理 (後方互換性のため)
         const messageString = message.toString();
         if (messageString === 'START_CONVERSATION') {
-            startConversation(wss);
+            startConversation(wss, ws); // ws を渡す
         } else if (messageString === 'STOP_CONVERSATION') {
-            stopConv(wss);
+            stopConv(wss, ws); // ws を渡す
         }
       }
     } catch (e) {
       // JSONパースに失敗した場合、文字列として処理
       const messageString = message.toString();
       if (messageString === 'START_CONVERSATION') {
-          startConversation(wss);
+          startConversation(wss, ws); // ws を渡す
       } else if (messageString === 'STOP_CONVERSATION') {
-          stopConv(wss);
+          stopConv(wss, ws); // ws を渡す
       } else {
         console.warn('Received non-JSON WebSocket message or unknown type:', messageString);
       }
@@ -67,6 +67,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
+    handleClientDisconnect(ws); // クライアント切断処理を呼び出す
   });
 
   ws.on('error', (error) => {
@@ -75,9 +76,11 @@ wss.on('connection', (ws) => {
 });
 
 // REST APIエンドポイント (会話開始など)
+// このエンドポイントは特定のクライアントを指定できないため、WebSocket経由での開始を推奨
 app.post('/start-conversation', (req, res) => {
-  startConversation(wss);
-  res.status(200).send({ message: 'Conversation started' });
+  // startConversation(wss); // 特定のクライアントなしに会話を開始するのは不適切
+  console.warn('/start-conversation API endpoint called, but it does not start a conversation for a specific client. Use WebSocket "START_CONVERSATION" message instead.');
+  res.status(400).send({ message: 'This endpoint is deprecated. Please use WebSocket message "START_CONVERSATION" to start a conversation for the connected client.' });
 });
 
 // TTS API Endpoint
