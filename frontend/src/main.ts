@@ -40,14 +40,37 @@ function connectWebSocket() {
 
   socket.onmessage = (event) => {
     try {
-      // Consider adding more robust parsing and type validation here if needed
-      const message = JSON.parse(event.data as string) as ChatMessage;
-      const messageElement = appendMessage(message); // Get the created message element
+      const rawData = event.data as string;
+      const parsedData = JSON.parse(rawData);
+
+      // サーバーからエラーメッセージが送られてきた場合の処理
+      if (parsedData.error && typeof parsedData.error === 'string') {
+        console.error('Server-side error:', parsedData.error);
+        appendMessage({ speaker: 'System', text: `サーバーエラー: ${parsedData.error}`, timestamp: new Date().toISOString() });
+        // エラーによってはボタンの状態をリセットするなどの処理も検討
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        startButton.style.display = 'block';
+        stopButton.style.display = 'none';
+        return;
+      }
+
+      // 通常のチャットメッセージとしてのバリデーションを強化
+      if (typeof parsedData.speaker !== 'string' || typeof parsedData.text !== 'string' || typeof parsedData.timestamp !== 'string') {
+        console.error('Invalid message format received:', parsedData);
+        appendMessage({ speaker: 'System', text: '無効な形式のメッセージを受信しました。', timestamp: new Date().toISOString() });
+        return;
+      }
+
+      const message = parsedData as ChatMessage; // 型アサーション
+      const messageElement = appendMessage(message);
 
       if (message.speaker === 'System' &&
-          (message.text === '会話が終了しました。' ||
-           message.text.includes('応答取得に失敗しました') ||
-           message.text === '会話が手動で停止されました。')) {
+          (message.text === '会話が終了しました。' || // Generic end
+           message.text.includes('応答取得に失敗しました') || // AI error
+           message.text === '会話が手動で停止されました。' || // Manual stop by client
+           message.text === '会話が停止されました。' || // Server-side stop (e.g. from DO stopConversation)
+           message.text === '会話の最大ターン数に達しました。')) { // Max turns reached
         startButton.disabled = false;
         stopButton.disabled = true;
         startButton.style.display = 'block';
@@ -132,7 +155,7 @@ function appendMessage(message: ChatMessage): HTMLDivElement | null { // Return 
       }
       const systemMessageElement = document.createElement('div');
       systemMessageElement.classList.add('message', 'speaker-System');
-      systemMessageElement.textContent = message.text;
+      systemMessageElement.textContent = message.text || "システムメッセージ (テキストなし)"; // textがない場合のフォールバック
       systemMessageContainer.appendChild(systemMessageElement);
     } else {
       console.error("systemMessageContainer not found!");
@@ -140,6 +163,8 @@ function appendMessage(message: ChatMessage): HTMLDivElement | null { // Return 
     return null; // System messages don't use the main chatArea animations
   }
 
+  // message.text が undefined や null の場合のフォールバックを追加
+  let messageTextContent = message.text || ""; // ここでフォールバック
   // Existing messages are not removed here anymore. They will be removed after TTS.
 
   // Clear and hide previous quote source - this might need rethinking if multiple messages are on screen.
@@ -157,18 +182,62 @@ function appendMessage(message: ChatMessage): HTMLDivElement | null { // Return 
 
   const currentSpeaker = message.speaker;
 
-  let messageTextContent = message.text;
-  let displayAuthorName: string;
+  // let messageTextContent = message.text; // 上でフォールバック設定済み
+  let displayAuthorName: string = currentSpeaker; // 初期値をスピーカー名に設定
   let extractedAuthorForBg: string | null = null;
 
-  const authorMatch = messageTextContent.match(/[(（]([^)）]+)[)）]\s*$/);
+  // 著者名抽出ロジックの改善
+  let authorFound = false;
+  
+  // 末尾の句点やピリオドを削除するヘルパー関数
+  const trimTrailingPunctuation = (str: string): string => {
+    return str.replace(/[。\s.]+$/u, '');
+  };
+
+  // パターン1: 全角半角括弧 (著者名) 、末尾の句点も考慮
+  let authorMatch = messageTextContent.match(/[(（]([^)）]+)[)）][\s。.]*$/u);
   if (authorMatch && authorMatch[1]) {
-    extractedAuthorForBg = authorMatch[1].trim();
+    extractedAuthorForBg = trimTrailingPunctuation(authorMatch[1].trim());
     displayAuthorName = extractedAuthorForBg;
-    messageTextContent = messageTextContent.substring(0, messageTextContent.lastIndexOf(authorMatch[0])).trim();
-  } else {
-    displayAuthorName = currentSpeaker;
+    // messageTextContent から括弧と著者名、および末尾の句点等を除去
+    messageTextContent = trimTrailingPunctuation(messageTextContent.substring(0, messageTextContent.lastIndexOf(authorMatch[0])).trim());
+    authorFound = true;
   }
+
+  // パターン2: エムダッシュ — 著者名 (括弧なし)、末尾の句点も考慮
+  if (!authorFound) {
+    // エムダッシュの後の文字列を著者名候補とし、そこから句点を除去
+    authorMatch = messageTextContent.match(/(.*)—\s*([^\s\u2014.]+)([\s。.]*)$/u); // エムダッシュをUnicodeエスケープ
+    if (authorMatch && authorMatch[2]) {
+      const quoteBody = authorMatch[1].trim();
+      extractedAuthorForBg = trimTrailingPunctuation(authorMatch[2].trim());
+      displayAuthorName = extractedAuthorForBg;
+      messageTextContent = trimTrailingPunctuation(quoteBody);
+      authorFound = true;
+    }
+  }
+  
+  // パターン3: ハイフン - 著者名 (括弧なし)、末尾の句点も考慮
+  if (!authorFound) {
+    authorMatch = messageTextContent.match(/(.*)-\s*([^\s\-.]+)([\s。.]*)$/u); // ハイフンをエスケープ
+     if (authorMatch && authorMatch[2]) {
+      const quoteBody = authorMatch[1].trim();
+      extractedAuthorForBg = trimTrailingPunctuation(authorMatch[2].trim());
+      displayAuthorName = extractedAuthorForBg;
+      messageTextContent = trimTrailingPunctuation(quoteBody);
+      authorFound = true;
+    }
+  }
+
+  if (!authorFound) {
+    displayAuthorName = currentSpeaker; // どのパターンにも一致しない場合はスピーカー名
+    extractedAuthorForBg = null; // 著者名が抽出できなかったことを示す
+    messageTextContent = trimTrailingPunctuation(messageTextContent); // それでも本文末尾の句点は除去
+  } else {
+     // 著者名が抽出できた場合でも、残ったmessageTextContentの末尾句点を除去
+     messageTextContent = trimTrailingPunctuation(messageTextContent);
+  }
+
 
   if (backgroundLogElement) {
     let textForBackgroundLog = messageTextContent;
@@ -228,20 +297,19 @@ function playMessageAudio(text: string, speaker: 'ALVA' | 'Bob'): Promise<void> 
   // curl -X 'GET' \
   // 'https://tts.do-not-connect.com/voice?text=aaa&model_id=0&speaker_id=0&sdp_ratio=0.2&noise=0.6&noisew=0.8&length=1&language=JP&auto_split=true&split_interval=0.5&assist_text_weight=1&style=Neutral&style_weight=1'
   const ttsParams = {
-    message: text,
-    stylebertvits2ModelId: speaker === 'ALVA' ? '5' : '1', // ALVA: model_id 0, Bob: model_id 1 (仮)
-    stylebertvits2SpeakerId: '0', // speaker_id は常に 0 とする
+    message: text, // 元のAI応答テキストを使用
+    stylebertvits2ModelId: speaker === 'ALVA' ? 5 : 1, // 文字列から数値に変更
+    stylebertvits2SpeakerId: 0, // 文字列から数値に変更
     stylebertvits2SdpRatio: 0.2,
-    stylebertvits2Noise: 0.6, // Default from curl
-    stylebertvits2NoiseW: 0.8, // Default from curl
+    stylebertvits2Noise: 0.6,
+    stylebertvits2NoiseW: 0.8,
     stylebertvits2Length: 1.0,
-    selectLanguage: 'ja', // 日本語固定
-    stylebertvits2AutoSplit: "true", // Default from curl
-    stylebertvits2SplitInterval: 0.5, // Default from curl
-    stylebertvits2AssistTextWeight: 1, // Default from curl
-    stylebertvits2Style: 'Neutral', // ALVA: Neutral, Bob: Happy (仮)
-    stylebertvits2StyleWeight: 1, // Default from curl
-    // stylebertvits2ServerUrl, stylebertvits2ApiKey, cfAccessClientId, cfAccessClientSecret はバックエンドで処理
+    selectLanguage: 'ja',
+    stylebertvits2AutoSplit: true, // 文字列 "true" からブール値 true に変更
+    stylebertvits2SplitInterval: 0.5,
+    stylebertvits2AssistTextWeight: 1,
+    stylebertvits2Style: 'Neutral',
+    stylebertvits2StyleWeight: 1,
   };
 
   try {
@@ -321,7 +389,7 @@ startButton.addEventListener('click', async () => {
   
   // WebSocketで会話開始をトリガー
   if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send('START_CONVERSATION');
+    socket.send(JSON.stringify({ type: 'START_CONVERSATION' }));
     appendMessage({ speaker: 'System', text: '会話開始リクエストを送信しました。', timestamp: new Date().toISOString() });
     // ボタンの状態はサーバーからの応答メッセージに基づいて更新されるため、ここでは直接変更しない
     // startButton.disabled = true;
@@ -335,7 +403,7 @@ startButton.addEventListener('click', async () => {
 
 stopButton.addEventListener('click', () => {
   if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send('STOP_CONVERSATION');
+    socket.send(JSON.stringify({ type: 'STOP_CONVERSATION' }));
     appendMessage({ speaker: 'System', text: '会話停止リクエストを送信しました。', timestamp: new Date().toISOString() });
     // Backend will send a "Conversation ended" message, which will trigger button state update
   } else {

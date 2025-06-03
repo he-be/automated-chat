@@ -18,4 +18,7 @@ Thumbs.db
 *.wav
 
 # Environment variable files in frontend (if not already covered by **/.env)
-frontend/.env* 
+frontend/.env*
+
+# Cloudflare Worker local development variables
+backend-worker-app/.dev.vars
