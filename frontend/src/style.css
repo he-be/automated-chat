@@ -336,8 +336,8 @@ body {
 @media (max-width: 768px) {
   #chatArea {
     font-size: 1.8em; /* Smaller font size for mobile */
-    /* Adjust padding or other properties if needed */
     padding: 10px;
+    height: 72%; /* Increase height from default 60% to 72% for more vertical space */
   }
 
   .message {
