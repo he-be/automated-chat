@@ -16,16 +16,8 @@ const currentQuoteSourceElement = document.getElementById('currentQuoteSource') 
 let fullConversationText = ""; // To store the entire conversation for the background
 // const MAX_BG_LOG_LENGTH = 5000; // Characters, adjust as needed - This logic will be removed for scrolling
 
-// バックエンドのWebSocketサーバーのURL
-// Cloudflare経由の場合は wss:// を使用し、ポート番号は含めない。
-// パス /ws をWebSocket通信専用とする（Cloudflare Tunnel側での設定と合わせる）
-const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-// 公開URLの場合はポートを指定せず、Cloudflareがよしなに処理してくれることを期待。
-// ローカル開発時など、window.location.hostname が localhost や IPアドレスの場合は、従来のポート3000を使う。
-const wsHost = (window.location.hostname === 'localhost' || window.location.hostname.match(/^(\d{1,3}\.){3}\d{1,3}$/))
-                ? `${window.location.hostname}:3000`
-                : window.location.hostname;
-const WS_URL = `${wsProtocol}//${wsHost}${wsProtocol === 'wss:' ? '/ws' : ''}`;
+// WebSocketサーバーのURL (Vite環境変数から取得)
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8787/websocket'; // デフォルトはローカル開発用
 
 let socket: WebSocket | null = null;
 
@@ -253,7 +245,8 @@ function playMessageAudio(text: string, speaker: 'ALVA' | 'Bob'): Promise<void> 
   };
 
   try {
-    const response = await fetch('/api/tts', {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || ''; // デフォルトは空文字、またはローカル開発用URL
+    const response = await fetch(`${apiUrl}/api/tts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

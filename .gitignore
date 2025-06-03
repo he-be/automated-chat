@@ -14,3 +14,8 @@ dist/
 .vscode/
 .DS_Store
 Thumbs.db
+# Audio files
+*.wav
+
+# Environment variable files in frontend (if not already covered by **/.env)
+frontend/.env* 
