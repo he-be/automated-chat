@@ -298,7 +298,7 @@ function playMessageAudio(text: string, speaker: 'ALVA' | 'Bob'): Promise<void> 
   // 'https://tts.do-not-connect.com/voice?text=aaa&model_id=0&speaker_id=0&sdp_ratio=0.2&noise=0.6&noisew=0.8&length=1&language=JP&auto_split=true&split_interval=0.5&assist_text_weight=1&style=Neutral&style_weight=1'
   const ttsParams = {
     message: text, // 元のAI応答テキストを使用
-    stylebertvits2ModelId: speaker === 'ALVA' ? 5 : 1, // 文字列から数値に変更
+    stylebertvits2ModelId: speaker === 'ALVA' ? 4 : 1, // 文字列から数値に変更
     stylebertvits2SpeakerId: 0, // 文字列から数値に変更
     stylebertvits2SdpRatio: 0.2,
     stylebertvits2Noise: 0.6,
